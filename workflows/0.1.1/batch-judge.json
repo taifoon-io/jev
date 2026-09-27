@@ -1,0 +1,341 @@
+{
+  "name": "Taifoon — batch judge scores for the coordination layer (TypeSafe/Jev)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Grade a batch",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ],
+      "notes": "in: — → out: — · start a batch (pass { subjects, jobId, threshold } or run the demo set)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// The batch: subjects already delivered (a handshake, or a job read from the chain), one canonical HIRE each. The\n// judge builds every evidence pack itself from DELIVERY + FACTS (schemas/GRADEABLE.md) — nothing here hands Jev a\n// state. Pass { subjects: [{ handshake_id } | { chainId, jobId }], jobId, threshold } on the trigger, or run the demo set.\nconst t = $input.first().json || {};\nconst subjects = Array.isArray(t.subjects) && t.subjects.length ? t.subjects : [\n  { handshake_id: 'hs_97dcf5942e294f7ca28efd0a' }, { handshake_id: 'hs_ec150f74dbe6568982c6c93d' }, { handshake_id: 'hs_c07ccb807a29b94dffb18459' },\n];\nreturn subjects.map((s) => {\n  const hs = typeof s.handshake_id === 'string' && /^hs_[0-9a-f]{24}$/.test(s.handshake_id) ? s.handshake_id : null;\n  const chainId = s.chainId != null ? Number(s.chainId) : hs ? 36927 : 8453;\n  const id = hs ?? String(s.jobId);\n  const job = hs ? { key: 'hs:' + hs, lane: 'handshake', chain_id: chainId, id: hs, contract: null }\n    : { key: 'erc8183:' + chainId + ':' + id, lane: 'erc8183', chain_id: chainId, id, contract: '0x238e541bfefd82238730d00a2208e5497f1832e0' };\n  return { json: {\n    schema: 'taifoon.hire.v1', job, lane: job.lane, tenant: null, buyer: null, seller: null, seller_agent_key: null, seller_ids: [],\n    evaluator: null, hook: null, evaluator_kind: null, task: null, required_skills: [], budget: null, funding: null,\n    created_at: null, deadline: null, handshake_id: hs, offer_nonce: null, state: 'Delivered', ending: null,\n    anchors: [{ kind: 'offchain', store: hs ? 'coordd:coordination_handshakes' : 'observatory', key: id, digest: null, anchored_by: null, what: 'the subject this batch grades' }],\n    source: { kind: hs ? 'handshake' : 'observatory-job', url: hs ? 'https://www.taifoon.io/v1/handshake/' + hs : 'https://www.taifoon.io/v1/judge/evidence/' + chainId + '/' + id, read_at: Math.floor(Date.now() / 1000) },\n  } };\n});"
+      },
+      "id": "e177aad3-f294-4ac5-beae-395993bd7de5",
+      "name": "Build the batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ],
+      "notes": "in: — → out: hire.json · one canonical HIRE per subject (a delivered handshake, or a job on chain); no state is built here",
+      "notesInFlow": true
+    },
+    {
+      "name": "Judge · prepare",
+      "type": "CUSTOM.taifoon",
+      "typeVersion": 1,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "resource": "judge",
+        "operation": "compose",
+        "composeSubject": "={{ $json.lane === 'handshake' ? 'handshake' : 'job' }}",
+        "composeHandshakeId": "={{ $json.handshake_id }}",
+        "composeMode": "prepare",
+        "composeJobId": "={{ $json.job.id }}",
+        "composeChainId": "={{ $json.job.chain_id }}"
+      },
+      "credentials": {
+        "taifoonRelayerApi": {
+          "id": "",
+          "name": "REPLACE: taifoonRelayerApi"
+        }
+      },
+      "id": "62dca0ae-d853-414f-ac98-89592623c7d2",
+      "notes": "in: hire.json → out: facts.json · POST /v1/judge/compose (prepare) per subject: the facts decide first; the pack is built from DELIVERY + FACTS; else the exact text Jev reads + prepare_digest",
+      "notesInFlow": true
+    },
+    {
+      "name": "Hard fail?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        860,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "h1",
+              "leftValue": "={{ $json.hard_fail === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "65ffd12f-ea5f-4a36-98c4-eea5f9afec86",
+      "notes": "in: facts.json → out: facts.json · branch: a hard fail is final (Jev is not asked) and goes straight to the batch",
+      "notesInFlow": true
+    },
+    {
+      "name": "Jev · TypeSafe (our credential)",
+      "type": "@taifoon/n8n-nodes-typesafe.taifoonTypeSafe",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        420
+      ],
+      "parameters": {
+        "operation": "ask",
+        "connection": "direct",
+        "state": "={{ JSON.stringify($json.jev.state) }}",
+        "questions": {},
+        "questionsJson": "={{ JSON.stringify($json.jev.questions) }}",
+        "routing": "{}",
+        "replyLanguage": "off",
+        "failClosed": true
+      },
+      "credentials": {
+        "taifoonTypeSafeApi": {
+          "id": "",
+          "name": "REPLACE: taifoonTypeSafeApi"
+        }
+      },
+      "notes": "in: facts.json → out: answers.json · TypeSafe ask on the prepared text (jevStateOf): every RUBRIC_ASKED answer with its whole distribution",
+      "id": "f2965735-6523-490f-a551-865edd654baf",
+      "notesInFlow": true
+    },
+    {
+      "name": "Judge · answers",
+      "type": "CUSTOM.taifoon",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        420
+      ],
+      "parameters": {
+        "resource": "judge",
+        "operation": "compose",
+        "composeSubject": "={{ $('Build the batch').item.json.lane === 'handshake' ? 'handshake' : 'job' }}",
+        "composeHandshakeId": "={{ $('Build the batch').item.json.handshake_id }}",
+        "composeMode": "answers",
+        "composeAnswers": "={{ JSON.stringify($json.answers) }}",
+        "composeModel": "={{ $json.model }}",
+        "composePrepareDigest": "={{ $('Judge · prepare').item.json.prepare_digest }}",
+        "composeAnsweredBy": "n8n-typesafe",
+        "composeExecutionId": "={{ $execution.id }}",
+        "composeLatencyMs": "={{ $json.latency_ms }}",
+        "composeJobId": "={{ $('Build the batch').item.json.job.id }}",
+        "composeChainId": "={{ $('Build the batch').item.json.job.chain_id }}"
+      },
+      "credentials": {
+        "taifoonRelayerApi": {
+          "id": "",
+          "name": "REPLACE: taifoonRelayerApi"
+        }
+      },
+      "id": "0ca9f21a-aff6-4fa1-8cc7-c0924dc1cce3",
+      "notes": "in: answers.json → out: verdict.json · POST /v1/judge/compose (answers): recompose under THRESHOLDS_v1, record decision.v2 and the answers (jev.answer.v1), anchor both",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// The batch outcome from the recorded verdicts — each item was composed under THRESHOLDS_v1 and recorded (decision.v2\n// + jev.answer.v1) by Judge · answers; a hard fail was final at prepare. complete → Conformant, reject → NonConformant,\n// needs_review → NoGrade (the verdict crate's batch mapping). Runs once per branch that reaches it; the batch record\n// is keyed by jobId, so the last (complete) run is the one that stays.\nconst t = $('Grade a batch').first().json || {};\nconst jobId = t.jobId || 'batch-' + $execution.id;\nconst threshold = typeof t.threshold === 'number' ? t.threshold : 0.2;\nconst prepared = $('Judge · prepare').all().map((i) => i.json);\nlet answered = [];\ntry { answered = $('Judge · answers').all().map((i) => i.json); } catch (e) { answered = []; }\nconst items = [];\nfor (const p of prepared.filter((x) => x.hard_fail === true)) items.push({ item_id: p.subject, verdict: 'NonConformant', composed: 'reject', forced: 'hard_fail', mode: 'Deterministic', decision_id: null, answers_digest: null });\nfor (const a of answered) {\n  const v = a.receipt && a.receipt.verdict;\n  items.push({ item_id: (a.decision && a.decision.subject_id) || null, verdict: v === 'complete' ? 'Conformant' : v === 'reject' ? 'NonConformant' : 'NoGrade', composed: v || null, forced: null, mode: 'Calibrated',\n    decision_id: a.decision ? a.decision.id : null, decision_digest: a.decision ? a.decision.digest : null, answers_digest: a.decision ? a.decision.answers_digest ?? null : null });\n}\nconst conformant = items.filter((i) => i.verdict === 'Conformant').length, nonconformant = items.filter((i) => i.verdict === 'NonConformant').length, nograde = items.length - conformant - nonconformant;\nconst graded = conformant + nonconformant, failFraction = graded === 0 ? 1 : nonconformant / graded;\nreturn [{ json: { jobId, mode: 'Calibrated', total: items.length, conformant, nonconformant, nograde, failFraction, threshold,\n  verdict: graded === 0 ? 'NoGrade' : failFraction <= threshold ? 'Conformant' : 'NonConformant', items } }];"
+      },
+      "id": "64dce113-21e8-454e-8a12-53858bd7a303",
+      "name": "Grade + aggregate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        300
+      ],
+      "notes": "in: facts.json | verdict.json → out: — · the batch outcome from the recorded verdicts (Conformant / NonConformant / NoGrade counts, fail fraction vs threshold) — a batch record, not a canonical entity",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.taifoon.io/v1/judge/batch",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "taifoonRelayerApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "record",
+      "name": "Record the batch to the coordination layer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1740,
+        300
+      ],
+      "credentials": {
+        "taifoonRelayerApi": {
+          "id": "",
+          "name": "REPLACE: taifoonRelayerApi"
+        }
+      },
+      "notes": "in: — → out: — · POST /v1/judge/batch (relayer key): the batch record, keyed batch:<jobId>",
+      "notesInFlow": true
+    }
+  ],
+  "connections": {
+    "Grade a batch": {
+      "main": [
+        [
+          {
+            "node": "Build the batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build the batch": {
+      "main": [
+        [
+          {
+            "node": "Judge · prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Judge · prepare": {
+      "main": [
+        [
+          {
+            "node": "Hard fail?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hard fail?": {
+      "main": [
+        [
+          {
+            "node": "Grade + aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Jev · TypeSafe (our credential)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jev · TypeSafe (our credential)": {
+      "main": [
+        [
+          {
+            "node": "Judge · answers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Judge · answers": {
+      "main": [
+        [
+          {
+            "node": "Grade + aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grade + aggregate": {
+      "main": [
+        [
+          {
+            "node": "Record the batch to the coordination layer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "meta": {
+    "taifoon": {
+      "contract": "https://www.taifoon.io/schemas/coordination/v1/",
+      "steps": {
+        "Grade a batch": {
+          "in": null,
+          "out": null,
+          "does": "start a batch (pass { subjects, jobId, threshold } or run the demo set)"
+        },
+        "Build the batch": {
+          "in": null,
+          "out": "https://www.taifoon.io/schemas/coordination/v1/hire.json",
+          "does": "one canonical HIRE per subject (a delivered handshake, or a job on chain); no state is built here"
+        },
+        "Judge · prepare": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/hire.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/facts.json",
+          "does": "POST /v1/judge/compose (prepare) per subject: the facts decide first; the pack is built from DELIVERY + FACTS; else the exact text Jev reads + prepare_digest"
+        },
+        "Hard fail?": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/facts.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/facts.json",
+          "does": "branch: a hard fail is final (Jev is not asked) and goes straight to the batch"
+        },
+        "Jev · TypeSafe (our credential)": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/facts.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/answers.json",
+          "does": "TypeSafe ask on the prepared text (jevStateOf): every RUBRIC_ASKED answer with its whole distribution"
+        },
+        "Judge · answers": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/answers.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+          "does": "POST /v1/judge/compose (answers): recompose under THRESHOLDS_v1, record decision.v2 and the answers (jev.answer.v1), anchor both"
+        },
+        "Grade + aggregate": {
+          "in": [
+            "https://www.taifoon.io/schemas/coordination/v1/facts.json",
+            "https://www.taifoon.io/schemas/coordination/v1/verdict.json"
+          ],
+          "out": null,
+          "does": "the batch outcome from the recorded verdicts (Conformant / NonConformant / NoGrade counts, fail fraction vs threshold) — a batch record, not a canonical entity"
+        },
+        "Record the batch to the coordination layer": {
+          "in": null,
+          "out": null,
+          "does": "POST /v1/judge/batch (relayer key): the batch record, keyed batch:<jobId>"
+        }
+      }
+    }
+  },
+  "tags": []
+}

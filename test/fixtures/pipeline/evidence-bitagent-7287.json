@@ -1,0 +1,89 @@
+{
+ "ok": true,
+ "chainId": 8453,
+ "jobId": "bitagent:8453:7287",
+ "facts": [
+  [
+   "job",
+   "ERC-8183 job 7287 of the BitAgent deployment on chain 8453 (contract 0x5009abb3a309115a4a682c66baf3bc9e0329bab7; observatory id bitagent:8453:7287)"
+  ],
+  [
+   "what the buyer asked (job description on chain)",
+   "equity_research where ticker is 'AAPL"
+  ],
+  [
+   "price",
+   "1.5 USDC funded into escrow"
+  ],
+  [
+   "buyer",
+   "0xc41c35cd98ed94b54a2adfcdf24a5574fdd0b5b8"
+  ],
+  [
+   "seller",
+   "0x1112889be806840a66419ea1e8d4dd21852993e5"
+  ],
+  [
+   "evaluator",
+   "0x4302e523d982f3b89cfc43ce4530c012b495ec11"
+  ],
+  [
+   "evaluator kind",
+   "platform (bitagent_platform_evaluator) \u2014 buyer = the client evaluates its own job; none = no evaluator, the job auto-completes; named = another address; platform = the deployment's own evaluator contract, settled by its operator through forceSettleJob"
+  ],
+  [
+   "hook",
+   "0x4302e523d982f3b89cfc43ce4530c012b495ec11"
+  ],
+  [
+   "created",
+   "2026-08-28 05:51:23 UTC"
+  ],
+  [
+   "funded",
+   "2026-08-28 05:51:43 UTC (20 s after creation)"
+  ],
+  [
+   "deadline",
+   "2026-09-27 05:51:16 UTC (30.0 d after funding)"
+  ],
+  [
+   "submitted",
+   "2026-08-28 05:51:55 UTC (12 s after funding), 30.0 d before the deadline"
+  ],
+  [
+   "what was delivered",
+   "a 32-byte digest 0xea9708d1352f28825bce3055ff248dbdae50314094f2adf3526bfe113d3f0641; the content behind it is not published on chain"
+  ],
+  [
+   "how it ended",
+   "still open"
+  ],
+  [
+   "events in order",
+   "JobCreated (block 50553468) \u2192 BudgetSet (block 50553473) \u2192 ProviderSet (block 50553475) \u2192 JobFunded (block 50553478) \u2192 JobSubmitted (block 50553484)"
+  ],
+  [
+   "this buyer with this seller",
+   "6 jobs: 6 open"
+  ],
+  [
+   "seller record (paid jobs that ended)",
+   "6 completed and paid, 0 delivered then rejected or paid and never delivered, 0 paid and expired after delivery with no ruling; 148 jobs in all"
+  ],
+  [
+   "seller speed",
+   "median 10 s from funding to delivery over 66 paid jobs"
+  ],
+  [
+   "seller buyers",
+   "10 distinct buyers; the largest placed 7% of its jobs"
+  ]
+ ],
+ "gaps": [
+  "the delivered content itself is not on chain, only its digest"
+ ],
+ "state": "job: ERC-8183 job 7287 of the BitAgent deployment on chain 8453 (contract 0x5009abb3a309115a4a682c66baf3bc9e0329bab7; observatory id bitagent:8453:7287)\nwhat the buyer asked (job description on chain): equity_research where ticker is 'AAPL\nprice: 1.5 USDC funded into escrow\nbuyer: 0xc41c35cd98ed94b54a2adfcdf24a5574fdd0b5b8\nseller: 0x1112889be806840a66419ea1e8d4dd21852993e5\nevaluator: 0x4302e523d982f3b89cfc43ce4530c012b495ec11\nevaluator kind: platform (bitagent_platform_evaluator) \u2014 buyer = the client evaluates its own job; none = no evaluator, the job auto-completes; named = another address; platform = the deployment's own evaluator contract, settled by its operator through forceSettleJob\nhook: 0x4302e523d982f3b89cfc43ce4530c012b495ec11\ncreated: 2026-08-28 05:51:23 UTC\nfunded: 2026-08-28 05:51:43 UTC (20 s after creation)\ndeadline: 2026-09-27 05:51:16 UTC (30.0 d after funding)\nsubmitted: 2026-08-28 05:51:55 UTC (12 s after funding), 30.0 d before the deadline\nwhat was delivered: a 32-byte digest 0xea9708d1352f28825bce3055ff248dbdae50314094f2adf3526bfe113d3f0641; the content behind it is not published on chain\nhow it ended: still open\nevents in order: JobCreated (block 50553468) \u2192 BudgetSet (block 50553473) \u2192 ProviderSet (block 50553475) \u2192 JobFunded (block 50553478) \u2192 JobSubmitted (block 50553484)\nthis buyer with this seller: 6 jobs: 6 open\nseller record (paid jobs that ended): 6 completed and paid, 0 delivered then rejected or paid and never delivered, 0 paid and expired after delivery with no ruling; 148 jobs in all\nseller speed: median 10 s from funding to delivery over 66 paid jobs\nseller buyers: 10 distinct buyers; the largest placed 7% of its jobs\nnot known:\n- the delivered content itself is not on chain, only its digest",
+ "source": "the acp-observatory index of every ERC-8183 (Virtuals v3 and the extra deployments \u2014 BitAgent on Base / BSC) and Virtuals memo-ACP job (events, getJob, transaction senders)",
+ "how": "POST /v1/judge/ref with { state, question, jobId, chainId } to ask Jev on exactly this evidence"
+}

@@ -1,0 +1,33 @@
+/**
+ * @taifoon/jev — Jev as a grader any protocol can call.
+ *
+ *   grade()          evidence → deterministic facts → Jev's atomic questions → composed verdict → receipt
+ *   facts()          the deterministic checks a protocol supplies (a failed one is final; Jev is not asked)
+ *   record()         the unsigned calls that put the receipt's digests on JevAnswerLog / JevDecisionLog
+ *   evaluatorCall()  the unsigned call that ends the job on the protocol whose evaluator seat you hold
+ *   verify()         recompute every digest and find the chain events that hold them
+ *   pipeline()       one job through the coordination layer's steps: pick → evidence → facts → grade → record → evaluator → premium → verify
+ *   RUBRIC_v1        the questions, thresholds and composition (pass your own rubric to grade)
+ *   CONTRACTS        where the logs and the evaluator seats are
+ *
+ * No runtime dependency. No key inside: the free trial, or your own TypeSafe key.
+ */
+export { grade } from './grade.js';
+export { facts } from './facts.js';
+export { record } from './record.js';
+export { evaluatorCall } from './evaluator/index.js';
+export { verify } from './verify.js';
+export { pipeline, STEPS, LAYER, factsFromEvidence, protocolFor, parseJob } from './pipeline.js';
+export { RUBRIC_v1 } from './rubric.js';
+export { CONTRACTS } from './contracts.js';
+
+export type { GradeInput, Receipt } from './grade.js';
+export type { FactsInput, Check } from './facts.js';
+export type { Recorded, UnsignedCall, Network } from './record.js';
+export type { Verification, AnswerEvent, DecisionEvent } from './verify.js';
+export type { Protocol, Adapter, AdapterOpts, EvaluatorCall } from './evaluator/index.js';
+export type { JevError } from './ask.js'; // thrown with .status and .next
+export type { Rubric, RubricInput, Question, Answer, Facts, Verdict, Composed, Thresholds } from './rubric.js';
+export type { Subject, AnswerRecord } from './records.js';
+export type { Hex } from './hash.js';
+export type { PipelineOpts, Trace, StepId, StepResult, Evidence, QueueRow, Quote } from './pipeline.js';

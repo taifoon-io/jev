@@ -1,0 +1,175 @@
+{
+  "name": "Taifoon — Stamp Grade (a recorded verdict → GradeStampRegistry on the devnet)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "in: — → out: — · start (pass { decision_id } to stamp another verdict)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── canonical VERDICT (taifoon.verdict.v1) from a decision record — the same mapping as the Taifoon verdict schema\n// fromDecision, inlined because an n8n code node cannot import the schemas package. workflows/test.mjs runs this node\n// and compares its output with fromDecision field by field.\nconst SITE = 'https://www.taifoon.io';\nconst isHash = (s) => typeof s === 'string' && /^0x[0-9a-fA-F]{64}$/.test(s);\nconst chainAnchor = (chain_id, tx, what, x = {}) => ({ kind: 'chain', chain_id, tx: tx.toLowerCase(), block: x.block ?? null, ts: x.ts ?? null, log_index: x.log_index ?? null, contract: x.contract ? x.contract.toLowerCase() : null, what });\nfunction jobKeyOf(subject) {\n  const ref = String(subject && subject.ref || ''), chain = Number(subject && subject.chainId) || 8453;\n  if (/^hs_[0-9a-f]{24}$/.test(ref)) return 'hs:' + ref;\n  if (/^([a-z][a-z0-9-]{0,31}):([1-9][0-9]{0,9}):([0-9]{1,78})$/.test(ref)) return ref;\n  if (/^0x[0-9a-fA-F]{64}$/.test(ref)) return 'hook:' + chain + ':' + ref.toLowerCase();\n  if (/^[0-9]{1,78}$/.test(ref)) return /^[0-9]{10,12}$/.test(ref) && BigInt(ref) >= 1000000001n ? 'memo-acp:8453:' + ref : 'erc8183:' + chain + ':' + ref;\n  return null;\n}\nfunction verdictFromDecision(d, composed) {\n  const rubric = /RUBRIC_v1 compose · rubric (0x[0-9a-f]{64})/.exec(String(d.note ?? ''));\n  const anchors = [];\n  if (d.anchor && isHash(d.anchor.tx)) anchors.push(chainAnchor(Number(d.anchor.chain), d.anchor.tx, `JevDecisionLog.record${d.anchor.index != null ? ` (decision index ${d.anchor.index})` : ''} · status ${d.anchor.status}`, { block: d.anchor.block ?? null, contract: d.anchor.contract ?? null }));\n  anchors.push({ kind: 'offchain', store: 'coordd:decisions', key: String(d.id), digest: isHash(d.digest) ? d.digest.toLowerCase() : null, anchored_by: anchors[0] && anchors[0].kind === 'chain' ? anchors[0] : null, what: 'the decision record; digest = sha256(canonicalDecision)' });\n  return {\n    schema: 'taifoon.verdict.v1', decision_id: String(d.id), version: d.v, kind: d.kind,\n    subject: { chain_id: Number(d.subject && d.subject.chainId), at: d.subject && d.subject.at ? String(d.subject.at).toLowerCase() : null, ref: String(d.subject && d.subject.ref), label: (d.subject && d.subject.label) ?? null },\n    subject_id: String(d.subject_id).toLowerCase(), subject_job_key: jobKeyOf(d.subject), digest: String(d.digest).toLowerCase(),\n    input_digest: isHash(d.input_digest) ? d.input_digest.toLowerCase() : null, answers_digest: isHash(d.answers_digest) ? d.answers_digest.toLowerCase() : null,\n    answers: (d.answers || []).map((a) => ({ id: String(a.id), question: a.question ?? null, options: a.options ?? null, value: String(a.value), probabilities: a.probabilities ?? {}, confidence: Number(a.confidence) })),\n    confidence_bps: d.confidence_bps, model: d.model ?? null, answers_source: d.answers_source ?? 'layer',\n    rubric: rubric ? { version: 'RUBRIC_v1', hash: rubric[1] } : null,\n    composed: composed ? { verdict: composed.verdict, auto: Boolean(composed.auto), forced: composed.forced ?? null, reasons: (composed.reasons || []).map(String), receipt_hash: isHash(composed.receiptHash) ? composed.receiptHash.toLowerCase() : null } : null,\n    anchors, source: { kind: 'decision', url: d.uri ?? `${SITE}/v1/judge/decisions/${d.id}`, read_at: Math.floor(Date.now() / 1000) },\n  };\n}\n// the GradeStampRegistry verdict code (1 delivered_as_specified · 2 delivered_with_defects · 3 not_delivered · 4 cannot_determine)\nconst STAMP_CODE = { delivered_as_specified: 1, delivered_with_defects: 2, not_delivered: 3, cannot_determine: 4 };\nfunction stampCodeOf(v) {\n  if (v.composed) return v.composed.verdict === 'complete' ? 1 : v.composed.verdict === 'reject' ? 2 : 4;\n  const ref = (v.answers || []).find((a) => STAMP_CODE[a.value]);\n  return ref ? STAMP_CODE[ref.value] : 4;\n}\n// the stamp transaction(s) the devnet signer mined → appended to the verdict's anchors\nconst stampAnchors = (sent, chainId) => (sent || []).filter((s) => isHash(s.tx) && s.status === 'success').map((s) => chainAnchor(chainId, s.tx, 'GradeStampRegistry.stamp (' + (s.action || 'stamp') + ')', { block: s.block ?? null, contract: s.to ?? null }));\n\n// the verdict to stamp: a recorded decision (pass { decision_id } on the trigger; the default is job 81067's REF decision)\nconst t = $input.first().json || {};\nconst id = t.decision_id || 'decision-1790239759511-7fc88c5799';\nconst d = (await this.helpers.httpRequest({ method: 'GET', url: SITE + '/v1/judge/decisions/' + id, json: true })).decision;\nconst v = verdictFromDecision(d, null);\nreturn [{ json: { ...v, stamp: { code: stampCodeOf(v), mode: 2 } } }];"
+      },
+      "id": "e00116ba-ac40-4cbe-9c4c-bddf65b3fc6d",
+      "name": "Verdict",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ],
+      "notes": "in: — → out: verdict.json · GET /v1/judge/decisions/:id → the canonical VERDICT (fromDecision) and its stamp code",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "resource": "assurance",
+        "operation": "stampGrade",
+        "chainId": 36927,
+        "stampSubject": "={{ $json.subject_id }}",
+        "stampDigest": "={{ $json.digest }}",
+        "stampVerdict": "={{ String($json.stamp.code) }}",
+        "stampMode": "={{ String($json.stamp.mode) }}",
+        "stampModel": "={{ $json.model || 'jev' }}",
+        "stampUri": "={{ $json.source.url }}"
+      },
+      "id": "b2",
+      "name": "Stamp Grade",
+      "type": "CUSTOM.taifoon",
+      "typeVersion": 1,
+      "position": [
+        640,
+        300
+      ],
+      "notes": "in: verdict.json → out: verdict.json · POST /v1/assurance/call stampGrade: the unsigned GradeStampRegistry.stamp(subject_id, digest, verdict code, mode)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "callsField": "calls",
+        "sendRequires": false,
+        "wait": true
+      },
+      "id": "2900d540-a3cd-488b-bc44-175b18575dcf",
+      "name": "Taifoon Devnet Signer",
+      "type": "CUSTOM.taifoonDevnetSigner",
+      "typeVersion": 1,
+      "position": [
+        860,
+        300
+      ],
+      "credentials": {
+        "taifoonDevnetKeyApi": {
+          "id": "",
+          "name": "REPLACE: taifoonDevnetKeyApi"
+        }
+      },
+      "notes": "in: verdict.json → out: verdict.json · sign and send the stamp on devnet 36927 (anvil #0)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── canonical VERDICT (taifoon.verdict.v1) from a decision record — the same mapping as the Taifoon verdict schema\n// fromDecision, inlined because an n8n code node cannot import the schemas package. workflows/test.mjs runs this node\n// and compares its output with fromDecision field by field.\nconst SITE = 'https://www.taifoon.io';\nconst isHash = (s) => typeof s === 'string' && /^0x[0-9a-fA-F]{64}$/.test(s);\nconst chainAnchor = (chain_id, tx, what, x = {}) => ({ kind: 'chain', chain_id, tx: tx.toLowerCase(), block: x.block ?? null, ts: x.ts ?? null, log_index: x.log_index ?? null, contract: x.contract ? x.contract.toLowerCase() : null, what });\nfunction jobKeyOf(subject) {\n  const ref = String(subject && subject.ref || ''), chain = Number(subject && subject.chainId) || 8453;\n  if (/^hs_[0-9a-f]{24}$/.test(ref)) return 'hs:' + ref;\n  if (/^([a-z][a-z0-9-]{0,31}):([1-9][0-9]{0,9}):([0-9]{1,78})$/.test(ref)) return ref;\n  if (/^0x[0-9a-fA-F]{64}$/.test(ref)) return 'hook:' + chain + ':' + ref.toLowerCase();\n  if (/^[0-9]{1,78}$/.test(ref)) return /^[0-9]{10,12}$/.test(ref) && BigInt(ref) >= 1000000001n ? 'memo-acp:8453:' + ref : 'erc8183:' + chain + ':' + ref;\n  return null;\n}\nfunction verdictFromDecision(d, composed) {\n  const rubric = /RUBRIC_v1 compose · rubric (0x[0-9a-f]{64})/.exec(String(d.note ?? ''));\n  const anchors = [];\n  if (d.anchor && isHash(d.anchor.tx)) anchors.push(chainAnchor(Number(d.anchor.chain), d.anchor.tx, `JevDecisionLog.record${d.anchor.index != null ? ` (decision index ${d.anchor.index})` : ''} · status ${d.anchor.status}`, { block: d.anchor.block ?? null, contract: d.anchor.contract ?? null }));\n  anchors.push({ kind: 'offchain', store: 'coordd:decisions', key: String(d.id), digest: isHash(d.digest) ? d.digest.toLowerCase() : null, anchored_by: anchors[0] && anchors[0].kind === 'chain' ? anchors[0] : null, what: 'the decision record; digest = sha256(canonicalDecision)' });\n  return {\n    schema: 'taifoon.verdict.v1', decision_id: String(d.id), version: d.v, kind: d.kind,\n    subject: { chain_id: Number(d.subject && d.subject.chainId), at: d.subject && d.subject.at ? String(d.subject.at).toLowerCase() : null, ref: String(d.subject && d.subject.ref), label: (d.subject && d.subject.label) ?? null },\n    subject_id: String(d.subject_id).toLowerCase(), subject_job_key: jobKeyOf(d.subject), digest: String(d.digest).toLowerCase(),\n    input_digest: isHash(d.input_digest) ? d.input_digest.toLowerCase() : null, answers_digest: isHash(d.answers_digest) ? d.answers_digest.toLowerCase() : null,\n    answers: (d.answers || []).map((a) => ({ id: String(a.id), question: a.question ?? null, options: a.options ?? null, value: String(a.value), probabilities: a.probabilities ?? {}, confidence: Number(a.confidence) })),\n    confidence_bps: d.confidence_bps, model: d.model ?? null, answers_source: d.answers_source ?? 'layer',\n    rubric: rubric ? { version: 'RUBRIC_v1', hash: rubric[1] } : null,\n    composed: composed ? { verdict: composed.verdict, auto: Boolean(composed.auto), forced: composed.forced ?? null, reasons: (composed.reasons || []).map(String), receipt_hash: isHash(composed.receiptHash) ? composed.receiptHash.toLowerCase() : null } : null,\n    anchors, source: { kind: 'decision', url: d.uri ?? `${SITE}/v1/judge/decisions/${d.id}`, read_at: Math.floor(Date.now() / 1000) },\n  };\n}\n// the GradeStampRegistry verdict code (1 delivered_as_specified · 2 delivered_with_defects · 3 not_delivered · 4 cannot_determine)\nconst STAMP_CODE = { delivered_as_specified: 1, delivered_with_defects: 2, not_delivered: 3, cannot_determine: 4 };\nfunction stampCodeOf(v) {\n  if (v.composed) return v.composed.verdict === 'complete' ? 1 : v.composed.verdict === 'reject' ? 2 : 4;\n  const ref = (v.answers || []).find((a) => STAMP_CODE[a.value]);\n  return ref ? STAMP_CODE[ref.value] : 4;\n}\n// the stamp transaction(s) the devnet signer mined → appended to the verdict's anchors\nconst stampAnchors = (sent, chainId) => (sent || []).filter((s) => isHash(s.tx) && s.status === 'success').map((s) => chainAnchor(chainId, s.tx, 'GradeStampRegistry.stamp (' + (s.action || 'stamp') + ')', { block: s.block ?? null, contract: s.to ?? null }));\n\n// the same VERDICT with the GradeStampRegistry stamp transaction appended to its anchors\nconst v = { ...$('Verdict').first().json };\ndelete v.stamp;\nreturn [{ json: { ...v, anchors: [...v.anchors, ...stampAnchors($json.sent, 36927)] } }];"
+      },
+      "id": "49dcb63d-9ae5-46e8-b7c3-abdc60598643",
+      "name": "Verdict + stamp",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        300
+      ],
+      "notes": "in: verdict.json → out: verdict.json · the same VERDICT with the stamp transaction appended to anchors",
+      "notesInFlow": true
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Verdict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verdict": {
+      "main": [
+        [
+          {
+            "node": "Stamp Grade",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stamp Grade": {
+      "main": [
+        [
+          {
+            "node": "Taifoon Devnet Signer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Taifoon Devnet Signer": {
+      "main": [
+        [
+          {
+            "node": "Verdict + stamp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "active": false,
+  "meta": {
+    "taifoon": {
+      "contract": "https://www.taifoon.io/schemas/coordination/v1/",
+      "steps": {
+        "Start": {
+          "in": null,
+          "out": null,
+          "does": "start (pass { decision_id } to stamp another verdict)"
+        },
+        "Verdict": {
+          "in": null,
+          "out": "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+          "does": "GET /v1/judge/decisions/:id → the canonical VERDICT (fromDecision) and its stamp code"
+        },
+        "Stamp Grade": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+          "does": "POST /v1/assurance/call stampGrade: the unsigned GradeStampRegistry.stamp(subject_id, digest, verdict code, mode)"
+        },
+        "Taifoon Devnet Signer": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+          "does": "sign and send the stamp on devnet 36927 (anvil #0)"
+        },
+        "Verdict + stamp": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+          "does": "the same VERDICT with the stamp transaction appended to anchors"
+        }
+      }
+    }
+  },
+  "tags": []
+}
