@@ -13,22 +13,24 @@ The node outputs the receipt and the unsigned calls, and it signs nothing. With 
 
 ## Workflows
 
-`workflows/0.2.2/` holds the four n8n workflows that run Jev. The same files are attached to the
-GitHub release as `jev-workflows-0.2.2.zip`:
+`workflows/0.2.7/` holds the four n8n workflows that run Jev (`workflows/0.2.2/` is kept as it shipped). The same
+files are attached to the GitHub release as `jev-workflows-0.2.7.zip`:
 
 - **`hire-judge-settle.json`** runs hire → prepare (facts) → TypeSafe (the four RUBRIC_v1 questions) → answers
-  (verdict, recorded and anchored) → settle on devnet. Executions 86 and 88 of this workflow are the golden runs above.
+  (verdict, recorded; Record On = devnet anchors it) → settle on devnet. Executions 86 and 88 of this workflow are the
+  golden runs above. Needs a Taifoon relayer key, your TypeSafe key and two devnet keys; outputs the whole job with every
+  transaction and its proof link.
 - **`jev-grader.json`** grades Base jobs nobody ruled on, then stamps each verdict on the devnet GradeStampRegistry.
 - **`batch-judge.json`** runs prepare → Jev → answers for each subject, then `POST /v1/judge/batch`.
 - **`stamp-grade.json`** takes a recorded decision, turns it into the canonical verdict and stamps it.
 
 Credential references are placeholders: `{ "id": "", "name": "REPLACE: <credential type>" }`. After import, pick your
 own credential of that type. Each step names the entity it takes and emits by `$id` (`meta.taifoon.steps`). The schemas
-behind those `$id`s are in `workflows/0.2.2/schemas/`. `manifest.json` pins every file by sha256.
-`workflows/0.2.2/README.md` explains each workflow step by step and lists the nodes and credentials it needs:
+behind those `$id`s are in `workflows/0.2.7/schemas/`. `manifest.json` pins every file by sha256.
+`workflows/0.2.7/README.md` explains each workflow step by step and lists the nodes and credentials it needs:
 
-- `@taifoon/n8n-nodes-typesafe`, tested with 1.3.0, is on npm.
-- `n8n-nodes-taifoon`, tested with 0.4.2, and `n8n-nodes-taifoon-devnet-signer`, tested with 0.2.0, are custom
+- `@taifoon/n8n-nodes-typesafe`, tested with 2.0.1, is on npm.
+- `n8n-nodes-taifoon`, tested with 0.4.5, and `n8n-nodes-taifoon-devnet-signer`, tested with 0.3.0, are custom
   extensions and are not on npm.
 
 ```

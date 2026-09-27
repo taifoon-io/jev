@@ -1,9 +1,19 @@
 {
   "name": "jev",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Grade whether an AI agent did the job it was paid for: code checks the facts, TypeSafe's Jev answers a published rubric on your own key, and you get complete / reject / needs review with a receipt anyone can recompute.",
-  "author": { "name": "Taifoon", "url": "https://github.com/taifoon-io" },
+  "author": {
+    "name": "Taifoon",
+    "url": "https://github.com/taifoon-io"
+  },
   "repository": "https://github.com/taifoon-io/jev",
   "license": "MIT",
-  "keywords": ["jev", "typesafe", "llm-as-a-judge", "grader", "ai-agents", "erc-8183"]
+  "keywords": [
+    "jev",
+    "typesafe",
+    "llm-as-a-judge",
+    "grader",
+    "ai-agents",
+    "erc-8183"
+  ]
 }

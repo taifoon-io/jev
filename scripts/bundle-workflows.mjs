@@ -23,7 +23,7 @@ export const publicSchema = (raw) => scrub(JSON.stringify(JSON.parse(raw, (k, v)
 
 export const WORKFLOWS = [
   { file: 'hire-judge-settle.tfnhiresettle001.json', out: 'hire-judge-settle.json', title: 'HIRE → JUDGE → SETTLE (devnet 36927)',
-    what: 'One hire from offer to settlement. The seller’s reply is held with its digest; prepare decides the facts (a hard fail skips Jev); your TypeSafe credential answers the four RUBRIC_v1 questions; answers composes the verdict under THRESHOLDS_v1, records decision.v2 and jev.answer.v1 and anchors them on the devnet logs; a complete settles through the devnet assurance hook (approve, fund, submit, complete), needs_review is held. Executions 86 and 88 of this workflow are the golden runs @taifoon/jev re-derives.' },
+    what: 'One hire from offer to settlement. The seller’s reply is held with its digest; prepare decides the facts (a hard fail skips Jev); your TypeSafe credential answers the four RUBRIC_v1 questions; answers composes the verdict under THRESHOLDS_v1, records decision.v2 and jev.answer.v1 and, with Record On = devnet (set in this file), anchors them on the devnet logs; a complete settles through the devnet assurance hook (approve, fund, submit, complete), needs_review is held until the job’s deadline, when anyone may call expire. Executions 86 and 88 of this workflow are the golden runs @taifoon/jev re-derives.\n\n**Needs:** n8n-nodes-taifoon ≥ 0.4.5 and n8n-nodes-taifoon-devnet-signer ≥ 0.3.0 (custom extensions), @taifoon/n8n-nodes-typesafe ≥ 2.0.1; a Taifoon relayer key, your TypeSafe key, and two devnet 36927 keys (buyer, seller) with gas and dUSDC. **Outputs:** the whole JOB (Receipt, then Proofs · wait): handshake, verdict, decision with its devnet anchor tx, and every settlement transaction with its proof link.' },
   { file: 'jev-grader.tfnjevgrader0001.json', out: 'jev-grader.json', title: 'Jev on-chain grader (grade → stamp → devnet)',
     what: 'Grades Base jobs that were paid and delivered and that nobody ruled on (GET /v1/judge/ready): four per run, each through prepare → Jev → answers, then the canonical verdict, then GradeStampRegistry.stamp on the devnet, signed by the devnet signer node; the stamp transaction is appended to the verdict’s anchors.' },
   { file: 'batch-judge.tfnbatchjudge001.json', out: 'batch-judge.json', title: 'Batch judge',
@@ -37,9 +37,9 @@ export const CREDENTIALS = {
   taifoonDevnetKeyApi: 'a devnet 36927 key with gas from https://faucet.taifoon.dev — credential type "Taifoon Devnet Key API" of n8n-nodes-taifoon-devnet-signer',
 };
 export const PACKAGES = {
-  '@taifoon/n8n-nodes-typesafe': { tested: '1.3.0', where: 'npm (community node): npm i @taifoon/n8n-nodes-typesafe' },
-  'n8n-nodes-taifoon': { tested: '0.4.2', where: 'custom extension (type prefix CUSTOM.); not on npm' },
-  'n8n-nodes-taifoon-devnet-signer': { tested: '0.2.0', where: 'custom extension (type prefix CUSTOM.); not on npm' },
+  '@taifoon/n8n-nodes-typesafe': { tested: '2.0.1', where: 'npm (community node): npm i @taifoon/n8n-nodes-typesafe' },
+  'n8n-nodes-taifoon': { tested: '0.4.5', where: 'custom extension (type prefix CUSTOM.); not on npm' },
+  'n8n-nodes-taifoon-devnet-signer': { tested: '0.3.0', where: 'custom extension (type prefix CUSTOM.); not on npm' },
 };
 const PKG_OF = { 'CUSTOM.taifoon': 'n8n-nodes-taifoon', 'CUSTOM.taifoonDevnetSigner': 'n8n-nodes-taifoon-devnet-signer', '@taifoon/n8n-nodes-typesafe.taifoonTypeSafe': '@taifoon/n8n-nodes-typesafe' };
 const sha = (s) => createHash('sha256').update(s).digest('hex');

@@ -1,0 +1,394 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.taifoon.io/schemas/coordination/v1/common.json",
+  "title": "common definitions",
+  "description": "Shared value shapes: addresses, hashes, amounts, the identity keys (job_key, agent_key), anchors and the source stamp every entity carries.",
+  "$defs": {
+    "address": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{40}$",
+      "description": "20-byte EVM address, lower-case (mappers lower-case every address they read)"
+    },
+    "bytes32": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{64}$",
+      "description": "32-byte hex, lower-case: a transaction hash, a digest, a bytes32 job id"
+    },
+    "uint_string": {
+      "type": "string",
+      "pattern": "^[0-9]{1,78}$",
+      "description": "an unsigned integer in the token’s smallest unit, as a decimal string (never a float)"
+    },
+    "chain_id": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "unix_s": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "unix seconds (block time when read from a chain)"
+    },
+    "unix_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "lane": {
+      "enum": [
+        "erc8183",
+        "erc8183-extra",
+        "memo-acp",
+        "hook",
+        "handshake",
+        "olas-mech",
+        "grid"
+      ],
+      "description": "which ledger or rail a job lives on: erc8183 (Virtuals ACP v3 on Base) · erc8183-extra (another ERC-8183 deployment, e.g. BitAgent) · memo-acp (Virtuals JobManager) · hook (assurance hook: layer or Moonbeam) · handshake (the layer’s offer, before any job) · olas-mech · grid"
+    },
+    "protocol": {
+      "enum": [
+        "erc8004",
+        "erc8183",
+        "memo-acp",
+        "bitagent",
+        "mcp",
+        "a2a",
+        "a2a-legacy",
+        "x402",
+        "n8n",
+        "webhook",
+        "olas-mech",
+        "phala-tee",
+        "grid",
+        "rest"
+      ]
+    },
+    "lifecycle_state": {
+      "enum": [
+        "Open",
+        "Delivered",
+        "Created",
+        "Funded",
+        "Submitted",
+        "Graded",
+        "Held",
+        "Settled",
+        "Rejected",
+        "Expired",
+        "Cheat",
+        "Cancelled"
+      ],
+      "description": "a state of transitions.json (src/machine.ts)"
+    },
+    "ending": {
+      "enum": [
+        "open",
+        "lapsed_unfunded",
+        "completed",
+        "rejected_delivered",
+        "rejected_undelivered",
+        "expired_delivered",
+        "expired_undelivered",
+        "cheated"
+      ],
+      "description": "the observatory’s ending (trails.mjs endingOf, plus the lapsed_unfunded override)"
+    },
+    "verdict_class": {
+      "type": "string",
+      "pattern": "^(correct|incorrect|undecided|excluded:[a-z_]+)$",
+      "description": "the seller-verdict rule (trails.mjs verdictOf): correct · incorrect · undecided · excluded:<reason>"
+    },
+    "ref_value": {
+      "enum": [
+        "delivered_as_specified",
+        "delivered_with_defects",
+        "not_delivered",
+        "cannot_determine"
+      ],
+      "description": "the REF vocabulary (judge-client REF_OPTIONS; DET from events uses the same four)"
+    },
+    "job_key": {
+      "type": "string",
+      "pattern": "^(hs:hs_[0-9a-f]{24}|[a-z][a-z0-9-]{0,31}:[1-9][0-9]{0,9}:(0x[0-9a-f]{64}|[0-9]{1,78}))$",
+      "description": "THE job identity: <label>:<chainId>:<id>. erc8183:8453:81067 (Virtuals ACP v3) · memo-acp:8453:1003562337 · bitagent:8453:8941 (extra deployment: exactly the observatory’s key) · hook:8453:0x5bf2… (assurance hook, bytes32) · hs:hs_… (a handshake before any job). src/ids.ts parses and formats it."
+    },
+    "agent_key": {
+      "type": "string",
+      "pattern": "^(erc8004:[1-9][0-9]{0,9}:[0-9]{1,78}|evm:[1-9][0-9]{0,9}:0x[0-9a-f]{40}|url:https?://[^\\s]+)$",
+      "description": "THE agent identity: erc8004:<chainId>:<agentId> when an ERC-8004 identity is known · evm:<chainId>:<address> for a party known only by its address (an ERC-8183 provider, a memo-ACP seller) · url:<card url> for a card with neither"
+    },
+    "token": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/address"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "symbol": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "decimals": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "address",
+        "symbol",
+        "decimals"
+      ],
+      "additionalProperties": false
+    },
+    "amount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw",
+        "value",
+        "token"
+      ],
+      "properties": {
+        "raw": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/uint_string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "description": "raw / 10^decimals, for reading; the raw value is authoritative"
+        },
+        "token": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/token"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "job_ref": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "common.json#/$defs/job_key"
+        },
+        "lane": {
+          "$ref": "common.json#/$defs/lane"
+        },
+        "chain_id": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/chain_id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "type": "string",
+          "description": "the id as its own ledger writes it (bytes32 hex, decimal, or hs_…)"
+        },
+        "contract": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/address"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "key",
+        "lane",
+        "chain_id",
+        "id",
+        "contract"
+      ],
+      "additionalProperties": false
+    },
+    "chain_anchor": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "chain"
+        },
+        "chain_id": {
+          "$ref": "common.json#/$defs/chain_id"
+        },
+        "tx": {
+          "$ref": "common.json#/$defs/bytes32"
+        },
+        "block": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "ts": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "block time (unix s) when the source carried it"
+        },
+        "log_index": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "contract": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/address"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "what": {
+          "type": "string",
+          "description": "what this transaction did, in words (event or call)"
+        }
+      },
+      "required": [
+        "kind",
+        "chain_id",
+        "tx",
+        "block",
+        "ts",
+        "log_index",
+        "contract",
+        "what"
+      ],
+      "additionalProperties": false
+    },
+    "offchain_anchor": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "offchain"
+        },
+        "store": {
+          "type": "string",
+          "description": "where the record lives: observatory, coordd:<prefix>, registry, card-url, n8n"
+        },
+        "key": {
+          "type": "string"
+        },
+        "digest": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/bytes32"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "anchored_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/chain_anchor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "the transaction that pins this off-chain record, when one does"
+        },
+        "what": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "store",
+        "key",
+        "digest",
+        "anchored_by",
+        "what"
+      ],
+      "additionalProperties": false
+    },
+    "anchor": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/chain_anchor"
+        },
+        {
+          "$ref": "#/$defs/offchain_anchor"
+        }
+      ]
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "observatory-job",
+            "handshake",
+            "n8n-hire-item",
+            "registry-agent",
+            "harvester-row",
+            "erc8004-registration",
+            "a2a-card",
+            "mcp-server",
+            "decision",
+            "jev-answer",
+            "settle-record",
+            "pool-quote",
+            "hire-lifecycle",
+            "evidence-pack",
+            "job-classes"
+          ],
+          "description": "which real source this record was mapped from"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "read_at": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "unix seconds when the source was read, when known"
+        }
+      },
+      "required": [
+        "kind",
+        "url",
+        "read_at"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -91,7 +91,7 @@ npx skills add taifoon-io/jev --skill jev-grader                                
 ## In n8n
 
 The same grader runs in n8n through [`@taifoon/n8n-nodes-typesafe`](https://www.npmjs.com/package/@taifoon/n8n-nodes-typesafe),
-with eleven ready-to-import judge workflows: grade an agent's delivery, grade a Base job from its record, fact-check a
+with twelve ready-to-import judge workflows: grade an agent's delivery, grade a Base job from its record, fact-check a
 chatbot answer, settle a refund dispute and more. See [its README](https://github.com/taifoon-io/n8n-nodes-typesafe#judge-workflows-ready-to-import).
 
 ## `jev run` flags
