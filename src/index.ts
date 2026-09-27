@@ -1,6 +1,7 @@
 /**
  * @taifoon/jev — Jev as a grader any protocol can call.
  *
+ *   prepareJob()     an agent job as the buyer laid it out → the evidence Jev reads + the code checks
  *   grade()          evidence → deterministic facts → Jev's atomic questions → composed verdict → receipt
  *   facts()          the deterministic checks a protocol supplies (a failed one is final; Jev is not asked)
  *   record()         the unsigned calls that put the receipt's digests on JevAnswerLog / JevDecisionLog
@@ -10,10 +11,11 @@
  *   RUBRIC_v1        the questions, thresholds and composition (pass your own rubric to grade)
  *   CONTRACTS        where the logs and the evaluator seats are
  *
- * No runtime dependency. No key inside: the free trial, or your own TypeSafe key.
+ * No runtime dependency. No key inside: Jev is called with your own TypeSafe key (console.typesafe.ai).
  */
 export { grade } from './grade.js';
 export { facts } from './facts.js';
+export { prepareJob, runCheck } from './job.js';
 export { record } from './record.js';
 export { evaluatorCall } from './evaluator/index.js';
 export { verify } from './verify.js';
@@ -23,6 +25,7 @@ export { CONTRACTS } from './contracts.js';
 
 export type { GradeInput, Receipt } from './grade.js';
 export type { FactsInput, Check } from './facts.js';
+export type { JobSpec, JobCheck, PreparedJob } from './job.js';
 export type { Recorded, UnsignedCall, Network } from './record.js';
 export type { Verification, AnswerEvent, DecisionEvent } from './verify.js';
 export type { Protocol, Adapter, AdapterOpts, EvaluatorCall } from './evaluator/index.js';

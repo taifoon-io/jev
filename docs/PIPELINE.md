@@ -66,10 +66,10 @@ npx @taifoon/jev run --no-layer --evidence pack.json    # your own pack, no laye
 | 7 | price the next premium from the seller record | `POST /v1/pools/quote` | skipped; use `@taifoon/jev-wilson` |
 | 8 | re-derive the receipt (and find it on chain) | none | same |
 
-Steps 1 to 4 are required: saying no at one stops the run. Keys come from the environment only, `TYPESAFE_KEY` (else
-the 3-call trial) and `TAIFOON_RELAYER_KEY`, and are never printed. Nothing is signed. In code it is `pipeline()`,
+Steps 1 to 4 are required: saying no at one stops the run. Keys come from the environment only, `TYPESAFE_KEY` (your own
+TypeSafe key; without it the Jev step stops and says where to get one) and `TAIFOON_RELAYER_KEY`, and are never printed. Nothing is signed. In code it is `pipeline()`,
 with a `before` gate and an `after` hook per step.
 
-Real run (2026-09-27, public trial): BitAgent job 7287 on Base asked for "equity_research where ticker is 'AAPL'" and
+Real run (2026-09-27): BitAgent job 7287 on Base asked for "equity_research where ticker is 'AAPL'" and
 got a 32-byte digest. Facts passed (delivered, before the deadline, 1.5 USDC). Jev answered spec_met 0.03, so the
 verdict is **reject**; the receipt re-derives; the seller's quote is 0.0%–39.0% (6 settled, thin record).

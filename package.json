@@ -48,6 +48,7 @@
     "bin",
     "workflows",
     "docs",
+    "examples",
     "README.md",
     "LICENSE"
   ],

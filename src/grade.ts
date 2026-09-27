@@ -1,5 +1,5 @@
 // grade(): evidence → deterministic facts → Jev's atomic questions → composed verdict → receipt.
-import { askJev, JevError, TRIAL_MAX_STATE, type Asked } from './ask.js';
+import { askJev, JevError, type Asked } from './ask.js';
 import { answersOf, buildReceipt, DEFAULT_FACTS, inputFor, packOf, rubricOf, type Connection, type Receipt } from './receipt.js';
 import type { Subject } from './records.js';
 import type { Answer, Facts, Rubric, RubricInput } from './rubric.js';
@@ -15,8 +15,6 @@ export type GradeInput = {
   rubric?: Rubric | RubricInput;
   /** your own TypeSafe key → api.typesafe.ai. Never stored, never recorded. */
   key?: string | null;
-  /** no key: the public trial (3 free calls). `true` or { url } */
-  trial?: boolean | { url?: string };
   /** answers you already have (e.g. from the n8n TypeSafe node): nothing is asked, the rest is identical */
   answers?: Record<string, Answer> | Answer[];
   /** the model that produced supplied answers, e.g. "jev-1.13.0" */
@@ -34,15 +32,14 @@ export type { Receipt };
 export async function grade(g: GradeInput): Promise<Receipt> {
   const rubric = rubricOf(g.rubric);
   const facts: Facts = (await g.facts) ?? DEFAULT_FACTS;
-  const useTrial = Boolean(!g.key && !g.answers && g.trial);
-  const { state, jevState } = inputFor(packOf(g.evidence), facts, useTrial ? TRIAL_MAX_STATE : undefined);
+  const { state, jevState } = inputFor(packOf(g.evidence), facts);
   // the facts decide first: a hard fail is final and Jev is never asked
   let asked: Asked | null = null; let answers: Record<string, Answer> | null = null; let model: string | null = null; let connection: Connection = 'none';
   if (rubric.compose(facts, null).forced !== 'hard_fail') {
     if (g.answers) { answers = answersOf(g.answers); model = g.model ?? null; connection = 'supplied'; }
     else {
-      if (!g.key && !g.trial) throw new JevError('pass { key } (your TypeSafe key) or { trial: true } (3 free calls)', 400);
-      asked = await askJev({ text: jevState, questions: rubric.asked, key: g.key, trialUrl: typeof g.trial === 'object' ? g.trial.url : undefined, endpoint: g.endpoint, fetch: g.fetch });
+      if (!g.key) throw new JevError('pass { key } (your TypeSafe key, from console.typesafe.ai) or { answers } you already have', 400);
+      asked = await askJev({ text: jevState, questions: rubric.asked, key: g.key, endpoint: g.endpoint, fetch: g.fetch });
       const missing = rubric.asked.filter((q) => !asked!.answers[q.id]).map((q) => q.id);
       if (missing.length) throw new JevError(`Jev returned no valid answer for: ${missing.join(', ')}`, 502);
       answers = asked.answers; model = asked.model; connection = asked.connection;

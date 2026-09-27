@@ -1,0 +1,27 @@
+{
+  "_note": "ILLUSTRATIVE job written by hand to show the data a grader needs. Not a real delivery.",
+  "id": "example:signal-unsupported",
+  "chainId": 8453,
+  "task": "Give me the current oracle signal for BTC with its EV score and the data it rests on",
+  "criteria": [
+    "Gives one signal: LONG, SHORT or FLAT",
+    "Gives an EV score",
+    "Shows the data the score rests on, by link"
+  ],
+  "delivered": "BTC signal: LONG. EV score 0.87, backtested win rate 91% over 5 years, guaranteed edge. Data: https://example.com/btc",
+  "checks": [
+    {
+      "kind": "includes",
+      "terms": [
+        "BTC",
+        "LONG"
+      ],
+      "name": "gives a signal"
+    },
+    {
+      "kind": "sources",
+      "min": 1
+    }
+  ],
+  "priceUsdc": 1
+}

@@ -21,7 +21,7 @@ function layer(over: Record<string, (init?: RequestInit) => Response> = {}) {
     if (url.includes('/v1/judge/queue')) return json(queue);
     if (url.includes('/v1/judge/evidence/8453/bitagent%3A8453%3A7287')) return json(ev7287);
     if (url.includes('/v1/pools/quote')) return json(quote);
-    if (url.includes('/v1/trial')) return json({ ok: true, model: 'jev', upstreamModel: 'jev-1.13.0', answers: CLEAN, latency_ms: 700, trial: { calls: 3, used: 1, left: 2 } });
+    if (url.includes('api.typesafe.ai/v1/systemone')) return json({ model: 'jev-1.13.0', answers: Object.fromEntries(CLEAN.map((a) => [a.id, { choice: a.value, confidence: a.confidence, probabilities: a.probabilities }])) });
     return json({ ok: false, error: `unrouted ${url}` }, 404);
   });
   return { f: f as unknown as typeof fetch, seen };
@@ -30,7 +30,7 @@ function layer(over: Record<string, (init?: RequestInit) => Response> = {}) {
 describe('pipeline() on the coordination layer', () => {
   it('runs all eight steps on the first READABLE queue row, skipping the mislabelled devnet rows', async () => {
     const { f, seen } = layer();
-    const t = await pipeline({ fetch: f });
+    const t = await pipeline({ fetch: f, key: 'apikey_x' });
     expect(t.steps.map((s) => s.id)).toEqual(STEPS.map((s) => s.id));
     expect(t.steps.filter((s) => !s.ok)).toEqual([]);
     expect(t.job).toEqual({ chainId: 8453, jobId: 'bitagent:8453:7287', seller: '0x1112889be806840a66419ea1e8d4dd21852993e5' });
@@ -47,7 +47,7 @@ describe('pipeline() on the coordination layer', () => {
 
   it('with a relayer key, POSTs the jev.answer.v1 record to /v1/judge/answers/record with X-API-Key', async () => {
     const { f, seen } = layer({ '/v1/judge/answers/record': () => json({ ok: true, digest: '0xabc', anchor: { status: 'queued' } }) });
-    const t = await pipeline({ fetch: f, job: '8453:bitagent:8453:7287', relayerKey: 'test-key' });
+    const t = await pipeline({ fetch: f, key: 'apikey_x', job: '8453:bitagent:8453:7287', relayerKey: 'test-key' });
     const post = seen.find((s) => s.url.endsWith('/v1/judge/answers/record'))!;
     expect((post.init!.headers as Record<string, string>)['x-api-key']).toBe('test-key');
     expect(JSON.parse(String(post.init!.body)).v ?? JSON.parse(String(post.init!.body)).use_case).toBeTruthy();
@@ -56,7 +56,7 @@ describe('pipeline() on the coordination layer', () => {
 
   it('a before() gate that says no skips the step and the rest still runs', async () => {
     const { f, seen } = layer();
-    const t = await pipeline({ fetch: f, job: '8453:bitagent:8453:7287', before: (s) => s.id !== 'premium' });
+    const t = await pipeline({ fetch: f, key: 'apikey_x', job: '8453:bitagent:8453:7287', before: (s) => s.id !== 'premium' });
     expect(t.steps.find((s) => s.id === 'premium')!.skipped).toMatch(/gate/);
     expect(seen.some((s) => s.url.includes('/v1/pools/quote'))).toBe(false);
     expect(t.verification!.ok).toBe(true);
@@ -92,7 +92,7 @@ describe('pipeline() independent of the layer', () => {
 
   it('a failed check is a hard reject: Jev is never asked and there is nothing to record', async () => {
     const f = vi.fn() as unknown as typeof fetch;
-    const t = await pipeline({ layer: false, fetch: f, trial: true, evidence: { subject: 'x', state: 'task: hash it', checks: { digest_recomputes: false } } });
+    const t = await pipeline({ layer: false, fetch: f, key: 'apikey_x', evidence: { subject: 'x', state: 'task: hash it', checks: { digest_recomputes: false } } });
     expect(f).not.toHaveBeenCalled();
     expect(t.receipt!.verdict).toBe('reject');
     expect(t.steps.find((s) => s.id === 'record')!.skipped).toMatch(/nothing to record/);
@@ -111,6 +111,16 @@ describe('pipeline() bound to a tenant (the Moonbeam shape)', () => {
     expect(t.receipt!.answersRecord!.caller).toBe('moonbeam');
     const plain = await pipeline({ layer: false, evidence: { subject: jobId, state: 'task: x\ndelivered: x' }, answers: CLEAN.map(({ id, value, confidence, probabilities }) => ({ id, value, confidence, probabilities })) });
     expect(t.receipt!.subjectId).not.toBe(plain.receipt!.subjectId);   // the hook is part of the subject
+  });
+});
+
+describe('no key, no Jev', () => {
+  it('without a key or answers the grade step fails and says where to get a key; nothing else is called', async () => {
+    const f = vi.fn() as unknown as typeof fetch;
+    const t = await pipeline({ layer: false, fetch: f, evidence: { subject: 'x', state: 'task: y' } });
+    expect(f).not.toHaveBeenCalled();
+    expect(t.steps.at(-1)).toMatchObject({ id: 'grade', ok: false });
+    expect(t.steps.at(-1)!.error).toMatch(/TYPESAFE_KEY/);
   });
 });
 

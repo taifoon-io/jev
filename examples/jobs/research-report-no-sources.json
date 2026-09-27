@@ -1,0 +1,29 @@
+{
+  "_note": "ILLUSTRATIVE job written by hand to show the data a grader needs. Not a real delivery.",
+  "id": "example:research-report-no-sources",
+  "chainId": 8453,
+  "task": "equity_research where ticker is 'AAPL'",
+  "criteria": [
+    "Names the ticker AAPL",
+    "Lists at least three risks, each with one sentence of reasoning",
+    "Ends with one call: BUY, HOLD or SELL",
+    "Cites at least two public sources by link",
+    "States no figure it does not source"
+  ],
+  "delivered": "AAPL looks strong. Risks: China, regulation, supply chain. Call: BUY.",
+  "checks": [
+    {
+      "kind": "includes",
+      "terms": [
+        "AAPL",
+        "BUY"
+      ],
+      "name": "names the ticker and a call"
+    },
+    {
+      "kind": "sources",
+      "min": 2
+    }
+  ],
+  "priceUsdc": 1.5
+}

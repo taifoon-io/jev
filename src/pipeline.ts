@@ -1,7 +1,7 @@
 // pipeline(): one job through the coordination layer's steps, each step a function with a typed output.
 //   pick → evidence → facts → grade → record → evaluator → premium → verify
 // Every step works without the layer too: pass `evidence` (your own pack) and the layer is never read; `grade` then
-// runs on your key or the trial, `record` returns unsigned calls, `premium` is skipped. With the layer
+// runs on your own TypeSafe key (or answers you already have), `record` returns unsigned calls, `premium` is skipped. With the layer
 // (https://coord.taifoon.dev by default) the job comes from /v1/judge/queue, the pack from /v1/judge/evidence, the
 // seller's terms from /v1/pools/quote, and — only with a relayer key — the answers are recorded on the layer through
 // /v1/judge/answers/record. Nothing here signs a transaction.
@@ -56,9 +56,8 @@ export type PipelineOpts = {
   job?: string | { chainId: number; jobId: string };
   /** your own evidence pack; skips pick + evidence */
   evidence?: { subject: string; state: string; delivered?: boolean; checks?: FactsInput['checks']; priceUsdc?: number | null; seller?: string };
-  /** your TypeSafe key (never stored, never recorded), or the public trial (3 free calls) */
+  /** your TypeSafe key from console.typesafe.ai (never stored, never recorded) */
   key?: string | null;
-  trial?: boolean;
   /** answers you already have (e.g. from the n8n TypeSafe node): Jev is not asked */
   answers?: Record<string, Answer> | Answer[];
   /** where record() points the calls; default devnet */
@@ -176,7 +175,8 @@ export async function pipeline(o: PipelineOpts = {}): Promise<Trace> {
 
   await step('grade', async () => {
     const g: GradeInput = { subject: o.subject ? o.subject(t.job!) : { chainId: t.job!.chainId, ref: t.job!.jobId }, evidence: pack.state, facts: runFacts(factsIn!), fetch: f, ...(o.caller ? { caller: o.caller } : {}) };
-    if (o.answers) g.answers = o.answers; else if (o.key) g.key = o.key; else g.trial = o.trial ?? true;
+    if (o.answers) g.answers = o.answers; else if (o.key) g.key = o.key;
+    else throw new Error('Jev needs your TypeSafe key: set TYPESAFE_KEY (console.typesafe.ai), or pass answers you already have');
     t.receipt = await grade(g);
     return { verdict: t.receipt.verdict, reasons: t.receipt.reasons, model: t.receipt.model, receiptHash: t.receipt.receiptHash };
   });

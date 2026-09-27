@@ -8,7 +8,6 @@ import d88 from './fixtures/decision-exec88-1790493351706-abea2dbbfd.json' with 
 import logs86 from './fixtures/getlogs-answers-exec86.json' with { type: 'json' };
 import decided86 from './fixtures/getlogs-decided-exec86.json' with { type: 'json' };
 type Mock = ReturnType<typeof vi.fn> & { mock: { calls: Array<[string, RequestInit]> } };
-const reply = (answers: Array<Record<string, unknown>>) => new Response(JSON.stringify({ ok: true, model: 'jev', upstreamModel: 'jev-1.13.0', answers, latency_ms: 812, trial: { calls: 3, used: 1, left: 2 } }), { status: 200 });
 const ans = (id: string, value: string, probabilities: Record<string, number>, confidence: number) => ({ id, kind: 'choice', schema_ok: true, value, confidence, probabilities });
 const CLEAN = [ans('spec_met', 'yes', { yes: 0.93, no: 0.07 }, 0.86), ans('unsupported_claim', 'no', { yes: 0.04, no: 0.96 }, 0.92), ans('ending', 'complete', { complete: 0.9, reject: 0.03, expire: 0, needs_review: 0.07 }, 0.83), ans('cheat_shaped', 'no', { yes: 0.02, no: 0.98 }, 0.96)];
 
@@ -26,40 +25,29 @@ describe('grade()', () => {
     expect(r.verdict).toBe('needs_review');
     expect(evaluatorCall('virtuals-erc8183', 1, r, r)).toBeNull();
   });
-  it('trial: asks the four RUBRIC_v1 questions once, composes complete, and the receipt verifies offline', async () => {
-    const f = vi.fn(async () => reply(CLEAN)) as unknown as Mock;
-    const r = await grade({ subject: 'job-1', evidence: { task: 'return 2+2', delivered: '4' }, trial: true, fetch: f as never, at: 1 });
+  it('asks the four RUBRIC_v1 questions once with your key, composes complete, and the receipt verifies offline', async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ model: 'jev-1.13.0', answers: Object.fromEntries(CLEAN.map((a) => [a.id, { choice: a.value, confidence: a.confidence, probabilities: a.probabilities }])) }), { status: 200 })) as unknown as Mock;
+    const r = await grade({ subject: 'job-1', evidence: { task: 'return 2+2', delivered: '4' }, key: 'apikey_x', fetch: f as never, at: 1 });
     expect(f).toHaveBeenCalledTimes(1);
     const sent = JSON.parse(String(f.mock.calls[0]![1]!.body));
-    expect(f.mock.calls[0]![0]).toBe('https://typesafe.taifoon.dev/v1/trial');
-    expect(sent.questions.map((q: { id: string }) => q.id)).toEqual(RUBRIC_v1.asked.map((q) => q.id));
+    expect(f.mock.calls[0]![0]).toBe('https://api.typesafe.ai/v1/systemone');
+    expect(Object.keys(sent.questions)).toEqual(RUBRIC_v1.asked.map((q) => q.id));
     expect(sent.state).toBe(r.input);
     expect(r.verdict).toBe('complete');
     expect(r.model).toBe('jev-1.13.0');
     expect(r.answers!.ending!.probabilities).toEqual({ complete: 0.9, reject: 0.03, expire: 0, needs_review: 0.07 });
     expect(r.not_asked).toEqual(['scope_ok', 'severity']);
-    expect(r.answersRecord!.credential_path).toBe('trial');
-    expect(r.via).toEqual({ connection: 'trial', latency_ms: 812, trial: { calls: 3, left: 2 } });
+    expect(r.answersRecord!.credential_path).toBe('caller-credential');
+    expect(r.via).toMatchObject({ connection: 'key', trial: null });
     const v = await verify(r, { chain: false });
     expect(v.problems).toEqual([]);
     expect(v.ok).toBe(true);
     const tampered = { ...r, verdict: 'reject' as const };
     expect((await verify(tampered, { chain: false })).checks.verdict).toBe(false);
   });
-  it('key: goes to api.typesafe.ai with the caller’s key and the TypeSafe question schema', async () => {
-    const f = vi.fn(async () => new Response(JSON.stringify({ model: 'jev-1.13.0', answers: Object.fromEntries(CLEAN.map((a) => [a.id, { choice: a.value, confidence: a.confidence, probabilities: a.probabilities }])) }), { status: 200 })) as unknown as Mock;
-    const r = await grade({ subject: 'job-2', evidence: 'x', key: 'apikey_test', fetch: f as never });
-    const [url, init] = f.mock.calls[0]!;
-    expect(url).toBe('https://api.typesafe.ai/v1/systemone');
-    expect((init!.headers as Record<string, string>).authorization).toBe('Bearer apikey_test');
-    expect(JSON.parse(String(init!.body)).questions.ending).toEqual({ type: 'choice', instructions: RUBRIC_v1.asked[2]!.text, criteria: { complete: 'complete', reject: 'reject', expire: 'expire', needs_review: 'needs_review' } });
-    expect(JSON.parse(String(init!.body)).model).toBe('jev-1.13.0');   // pinned: never the moving jev-latest alias
-    expect(r.answersRecord!.credential_path).toBe('caller-credential');
-    expect(JSON.stringify(r)).not.toContain('apikey_test');
-  });
   it('a failed deterministic check is final: reject, Jev never asked, nothing to record', async () => {
     const f = vi.fn();
-    const r = await grade({ subject: 'job-3', evidence: 'x', trial: true, fetch: f as never, facts: facts({ delivered: true, checks: { proof_verifies: false, amount: true } }) });
+    const r = await grade({ subject: 'job-3', evidence: 'x', key: 'apikey_x', fetch: f as never, facts: facts({ delivered: true, checks: { proof_verifies: false, amount: true } }) });
     expect(f).not.toHaveBeenCalled();
     expect(r).toMatchObject({ verdict: 'reject', forced: 'hard_fail', decision: null });
     await expect(record(r)).rejects.toThrow(/hard fail/);
@@ -72,14 +60,8 @@ describe('grade()', () => {
     expect(r.verdict).toBe('needs_review');
     expect(r.reasons.at(-1)).toMatch(/above the auto-complete cap/);
   });
-  it('the trial’s 4,000-character limit: the evidence is cut, never the facts section', async () => {
-    const f = vi.fn(async () => reply(CLEAN));
-    const r = await grade({ subject: 'job-5', evidence: 'é\n"'.repeat(3000), trial: true, fetch: f as never, facts: facts({ delivered: true, checks: { ok: true } }) });
-    expect(JSON.stringify(r.input).length).toBeLessThanOrEqual(4000);
-    expect(r.input).toContain('- ok: passed');
-  });
-  it('asks nothing without a key or trial; a custom rubric composes with its own rule', async () => {
-    await expect(grade({ subject: 's', evidence: 'x' })).rejects.toThrow(/key.*trial/);
+  it('asks nothing without a key, and there is no other door; a custom rubric composes with its own rule', async () => {
+    await expect(grade({ subject: 's', evidence: 'x' })).rejects.toThrow(/TypeSafe key/);
     const r = await grade({ subject: 's', evidence: 'x', rubric: { version: 'MY_v1', questions: [{ id: 'ok', text: 'Is it ok?', options: ['yes', 'no'] }], compose: (_f, a) => ({ verdict: a?.ok?.value === 'yes' ? 'complete' : 'reject', auto: true, forced: null, reasons: ['mine'], scores: { spec_met: null, unsupported_claim: null, scope_ok: null, cheat_shaped: null, ending: null, severity: null } }) },
       answers: [{ id: 'ok', value: 'yes', confidence: 0.9, probabilities: { yes: 0.9, no: 0.1 } }] });
     expect(r.rubric).toBe('MY_v1');

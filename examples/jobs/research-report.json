@@ -1,0 +1,34 @@
+{
+  "_note": "ILLUSTRATIVE job written by hand to show the data a grader needs. Not a real delivery.",
+  "id": "example:research-report",
+  "chainId": 8453,
+  "task": "equity_research where ticker is 'AAPL'",
+  "criteria": [
+    "Names the ticker AAPL",
+    "Lists at least three risks, each with one sentence of reasoning",
+    "Ends with one call: BUY, HOLD or SELL",
+    "Cites at least two public sources by link",
+    "States no figure it does not source"
+  ],
+  "delivered": "AAPL equity research, 26 September 2026.\nPrice context: AAPL closed at the level shown on the source page linked below; this report does not restate a price it cannot cite.\nRisks:\n1. China demand: a slowdown in the Greater China segment would hit iPhone revenue first.\n2. Regulation: app store rules in the EU and the US could cut services margins.\n3. Supply chain: assembly is concentrated in a few regions.\nCall: HOLD. The three risks balance the services growth described in the latest filing.\nSources:\n- https://investor.apple.com/sec-filings/default.aspx\n- https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193",
+  "checks": [
+    {
+      "kind": "includes",
+      "terms": [
+        "AAPL",
+        "HOLD"
+      ],
+      "name": "names the ticker and a call"
+    },
+    {
+      "kind": "sources",
+      "min": 2
+    },
+    {
+      "kind": "deadline",
+      "submittedAt": "2026-09-26T10:00:00Z",
+      "deadline": "2026-09-27T00:00:00Z"
+    }
+  ],
+  "priceUsdc": 1.5
+}

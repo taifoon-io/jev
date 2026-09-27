@@ -1,0 +1,6 @@
+[
+  { "id": "spec_met", "value": "yes", "confidence": 0.84, "probabilities": { "yes": 0.92, "no": 0.08 }, "_note": "SAMPLE answers for the offline demo, written by hand. They are not an output of Jev." },
+  { "id": "unsupported_claim", "value": "no", "confidence": 0.9, "probabilities": { "yes": 0.06, "no": 0.94 } },
+  { "id": "ending", "value": "complete", "confidence": 0.82, "probabilities": { "complete": 0.88, "reject": 0.04, "expire": 0, "needs_review": 0.08 } },
+  { "id": "cheat_shaped", "value": "no", "confidence": 0.95, "probabilities": { "yes": 0.03, "no": 0.97 } }
+]

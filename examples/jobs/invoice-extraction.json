@@ -1,0 +1,24 @@
+{
+  "_note": "ILLUSTRATIVE job written by hand to show the data a grader needs. Not a real delivery.",
+  "id": "example:invoice-extraction",
+  "task": "Extract the invoice into JSON with invoice_no, total, currency and due_date",
+  "criteria": [
+    "Returns one JSON object with exactly the four fields",
+    "Every value matches the source invoice",
+    "due_date is ISO 8601 (YYYY-MM-DD)"
+  ],
+  "source": "INVOICE INV-20931\nIssued 2026-09-01 by Northwind Parts GmbH\nTotal due: EUR 1,240.50\nPayment due by 2026-10-01",
+  "delivered": "{\"invoice_no\": \"INV-20931\", \"total\": 1240.50, \"currency\": \"EUR\", \"due_date\": \"2026-10-01\"}",
+  "checks": [
+    {
+      "kind": "json",
+      "keys": [
+        "invoice_no",
+        "total",
+        "currency",
+        "due_date"
+      ]
+    }
+  ],
+  "priceUsdc": 0.2
+}

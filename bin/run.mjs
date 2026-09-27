@@ -1,12 +1,14 @@
 // jev run — one job through the pipeline, one step at a time.
-//   jev run                              the first ready job on the coordination layer's queue, on the public trial
+//   jev run                              the first ready job on the coordination layer's queue (needs TYPESAFE_KEY)
 //   jev run --job 8453:81100             a job you name (chain:id; ids like bitagent:8453:7287 work too)
 //   jev run --evidence pack.json         your own pack, no layer at all: { subject, state, delivered?, checks?, priceUsdc? }
+//   jev run --job-file job.json          one agent job: { id, task, criteria[], delivered, source?, checks[] } (see examples/jobs/)
+//   jev run --demo                       offline, no key: examples/jobs/research-report.json with SAMPLE answers (not Jev's)
 //   jev run --answers answers.json       answers you already have (the n8n TypeSafe node's output): Jev is not asked
 //   --network none|devnet|base|both      where record() points the calls (default devnet)
 //   --layer <url> | --no-layer           the coordination layer (default https://coord.taifoon.dev)
 //   --yes                                run every step without asking;  --json  print the whole trace as JSON at the end
-// Keys come from the environment only: TYPESAFE_KEY (your own Jev key; otherwise the 3-call trial) and
+// Keys come from the environment only: TYPESAFE_KEY (your own TypeSafe key, console.typesafe.ai) and
 // TAIFOON_RELAYER_KEY (records the answers on the layer). Neither is printed or written anywhere.
 // Output is @taifoon/term (vendored as ./term.mjs), the same rhythm as `taifoon up` and the STUDIO run log.
 import { readFileSync } from 'node:fs';
@@ -35,21 +37,24 @@ export async function run(argv) {
   const a = [...argv];
   const has = (n) => { const i = a.indexOf(n); if (i < 0) return false; a.splice(i, 1); return true; };
   const val = (n) => { const i = a.indexOf(n); return i >= 0 ? a.splice(i, 2)[1] : undefined; };
-  const yes = has('--yes') || !process.stdin.isTTY; const json = has('--json'); const noLayer = has('--no-layer');
-  const job = val('--job'); const evFile = val('--evidence'); const ansFile = val('--answers');
+  const yes = has('--yes') || !process.stdin.isTTY; const json = has('--json'); const noLayer = has('--no-layer') || argv.includes('--demo') || argv.includes('--job-file');
+  const demo = has('--demo');
+  const job = val('--job'); const evFile = val('--evidence');
+  const jobFile = val('--job-file') ?? (demo ? new URL('../examples/jobs/research-report.json', import.meta.url).pathname : undefined);
+  const ansFile = val('--answers') ?? (demo ? new URL('../examples/jobs/research-report.sample-answers.json', import.meta.url).pathname : undefined);
   const network = val('--network') ?? 'devnet'; const layer = noLayer ? false : val('--layer');
   const protocol = val('--protocol'); const price = val('--price-usdc');
-  const { pipeline, STEPS } = await import('../dist/index.js');
+  const { pipeline, STEPS, prepareJob } = await import('../dist/index.js');
 
   const t = createTerm({ quiet: json });
   const rl = yes ? null : createInterface({ input: process.stdin, output: process.stdout });
-  t.info(`jev run · ${noLayer ? 'independent (no layer)' : `layer ${layer ?? 'https://coord.taifoon.dev'}`} · grade on ${ansFile ? 'supplied answers' : process.env.TYPESAFE_KEY ? 'your TypeSafe key' : 'the public trial (3 free calls)'} · record → ${network}${process.env.TAIFOON_RELAYER_KEY ? ' + the layer' : ''}`);
+  t.info(`jev run · ${noLayer ? 'independent (no layer)' : `layer ${layer ?? 'https://coord.taifoon.dev'}`} · grade on ${demo ? 'SAMPLE answers (not from Jev)' : ansFile ? 'supplied answers' : process.env.TYPESAFE_KEY ? 'your TypeSafe key' : 'no key: set TYPESAFE_KEY, or try --demo'} · record → ${network}${process.env.TAIFOON_RELAYER_KEY ? ' + the layer' : ''}`);
 
   const trace = await pipeline({
     layer, job, network, protocol, priceUsdc: price ? Number(price) : undefined,
-    evidence: evFile ? JSON.parse(readFileSync(evFile, 'utf8')) : undefined,
+    evidence: jobFile ? prepareJob(JSON.parse(readFileSync(jobFile, 'utf8'))).pack : evFile ? JSON.parse(readFileSync(evFile, 'utf8')) : undefined,
     answers: ansFile ? JSON.parse(readFileSync(ansFile, 'utf8')) : undefined,
-    key: process.env.TYPESAFE_KEY || null, trial: true, relayerKey: process.env.TAIFOON_RELAYER_KEY || null,
+    key: process.env.TYPESAFE_KEY || null, relayerKey: process.env.TAIFOON_RELAYER_KEY || null,
     before: async (s) => {
       t.step(STEPS.indexOf(s) + 1, STEPS.length, s.title);
       if (s.route) t.note(s.route);
