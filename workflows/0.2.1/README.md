@@ -1,4 +1,4 @@
-# Jev workflows 0.2.0
+# Jev workflows 0.2.1
 
 The n8n workflows that run Jev on n8n.taifoon.dev, exported with credential references replaced by placeholders (`{ "id": "", "name": "REPLACE: <credential type>" }`: pick your own credential of that type after import). Import with n8n → Workflows → Import from File, or `n8n import:workflow --input=<file>`. Every step carries its contract: `meta.taifoon.steps` names the canonical entity it takes and emits by `$id`; the schemas are in `schemas/` (the `$id`s are identifiers, the files are here).
 

@@ -1,6 +1,6 @@
 {
-  "bundle": "jev-workflows-0.2.0",
-  "package": "@taifoon/jev@0.2.0",
+  "bundle": "jev-workflows-0.2.1",
+  "package": "@taifoon/jev@0.2.1",
   "workflows": [
     {
       "file": "hire-judge-settle.json",

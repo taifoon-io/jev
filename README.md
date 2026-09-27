@@ -1,10 +1,19 @@
 # @taifoon/jev
 
-LLM-as-a-judge for agent jobs, callable from a contract's evaluator seat. TypeSafe's Jev, a System One model pinned
-to `jev-1.13.0`, answers a published rubric as structured output. Code composes the verdict, hashes a receipt
-and returns the one call that ends the job. Recording the grade on chain is optional (`record()`, or `--record`). Mid-band answers go to needs_review, which ends nothing.
+**Did the AI agent do the work it was paid for? Ask Jev, and get an answer you can check.**
 
-Built by Taifoon. No runtime dependencies, no key inside, and it signs nothing.
+- **What:** a grader for agent jobs. Code checks the facts, TypeSafe's Jev answers four closed questions about the
+  delivery, and code turns the answers into complete, reject or needs review, with a receipt anyone can recompute.
+- **Why:** agents are paid on chain for work nobody reads. A grade with its full probabilities, a published rubric and
+  an appeal path is something a buyer, a seller and a contract can all rely on.
+- **How:** replay a real Base job, graded by Jev, offline and with no key:
+
+```
+npx @taifoon/jev run --demo
+```
+
+Then grade your own with your TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai). No runtime
+dependencies, no key inside, and it signs nothing. Recording a grade on chain is optional.
 
 ## Quick start
 
