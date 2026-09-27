@@ -3,14 +3,17 @@
 // Every credential reference becomes a placeholder (id "", a name that says which credential type to pick); a secret-
 // shaped string anywhere refuses the build. Run in the development tree: node scripts/bundle-workflows.mjs
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PKG = JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf8'));
 const DEV_ROOT = join(here, '..', '..', '..');
-const OUT = join(here, '..', 'workflows', PKG.version);
+// a bundle has its own version: rebuilt (BUNDLE_VERSION=x.y.z node scripts/bundle-workflows.mjs) only when workflows change
+const BUNDLE = process.env.BUNDLE_VERSION || PKG.version;
+const OUT = join(here, '..', 'workflows', BUNDLE);
+export const newestBundle = () => { try { return readdirSync(join(here, '..', 'workflows')).filter((d) => /^\d+\.\d+\.\d+$/.test(d)).sort((x, y) => x.localeCompare(y, undefined, { numeric: true })).at(-1); } catch { return undefined; } };
 export const SECRET = /(apikey_[A-Za-z0-9]{8,}|tfn_live_[A-Za-z0-9]{8,}|tfr_[A-Za-z0-9]{16,}|npm_[A-Za-z0-9]{30,}|sk-ant-[A-Za-z0-9-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|0x[0-9a-fA-F]{64}"\s*[,}]\s*$)/m;
 
 /** Workflow text as published: internal source paths in code comments become a public name. */
@@ -53,10 +56,10 @@ export function sanitize(w) {
 }
 
 export function build() {
-  const manifest = { bundle: `jev-workflows-${PKG.version}`, package: `${PKG.name}@${PKG.version}`, workflows: [], schemas: [], packages: PACKAGES, credentials: CREDENTIALS };
+  const manifest = { bundle: `jev-workflows-${BUNDLE}`, package: `${PKG.name}@${PKG.version}`, workflows: [], schemas: [], packages: PACKAGES, credentials: CREDENTIALS };
   rmSync(OUT, { recursive: true, force: true }); mkdirSync(join(OUT, 'schemas'), { recursive: true });
   const usedSchemas = new Set(['common.json']);
-  let readme = `# Jev workflows ${PKG.version}\n\nThe n8n workflows that run Jev on n8n.taifoon.dev, exported with credential references replaced by placeholders (\`{ "id": "", "name": "REPLACE: <credential type>" }\`: pick your own credential of that type after import). Import with n8n → Workflows → Import from File, or \`n8n import:workflow --input=<file>\`. Every step carries its contract: \`meta.taifoon.steps\` names the canonical entity it takes and emits by \`$id\`; the schemas are in \`schemas/\` (the \`$id\`s are identifiers, the files are here).\n\n## Nodes they need\n\n| Package | Tested with | Where |\n|---|---|---|\n${Object.entries(PACKAGES).map(([p, v]) => `| \`${p}\` | ${v.tested} | ${v.where} |`).join('\n')}\n\n## Credentials they need\n\n| Type | What |\n|---|---|\n${Object.entries(CREDENTIALS).map(([t, v]) => `| \`${t}\` | ${v} |`).join('\n')}\n`;
+  let readme = `# Jev workflows ${BUNDLE}\n\nThe n8n workflows that run Jev on n8n.taifoon.dev, exported with credential references replaced by placeholders (\`{ "id": "", "name": "REPLACE: <credential type>" }\`: pick your own credential of that type after import). Import with n8n → Workflows → Import from File, or \`n8n import:workflow --input=<file>\`. Every step carries its contract: \`meta.taifoon.steps\` names the canonical entity it takes and emits by \`$id\`; the schemas are in \`schemas/\` (the \`$id\`s are identifiers, the files are here).\n\n## Nodes they need\n\n| Package | Tested with | Where |\n|---|---|---|\n${Object.entries(PACKAGES).map(([p, v]) => `| \`${p}\` | ${v.tested} | ${v.where} |`).join('\n')}\n\n## Credentials they need\n\n| Type | What |\n|---|---|\n${Object.entries(CREDENTIALS).map(([t, v]) => `| \`${t}\` | ${v} |`).join('\n')}\n`;
   for (const wf of WORKFLOWS) {
     const src = JSON.parse(readFileSync(join(DEV_ROOT, 'workflows', wf.file), 'utf8'));
     const clean = sanitize(src);
@@ -94,7 +97,7 @@ export function check(version = PKG.version) {
     if (SECRET.test(text)) problems.push(`${w.file}: secret-shaped string`);
     for (const n of JSON.parse(text).nodes) for (const [t, ref] of Object.entries(n.credentials ?? {})) if (ref.id !== '' || ref.name !== `REPLACE: ${t}` || Object.keys(ref).length !== 2) problems.push(`${w.file} ${n.name}: credential ${t} is not a placeholder`);
     const src = join(DEV_ROOT, 'workflows', WORKFLOWS.find((x) => x.out === w.file)?.file ?? '-');
-    if (version === PKG.version && existsSync(src) && scrub(JSON.stringify(sanitize(JSON.parse(readFileSync(src, 'utf8'))), null, 2) + '\n') !== text) problems.push(`${w.file}: stale — workflows/ changed; run node scripts/bundle-workflows.mjs`);
+    if (version === newestBundle() && existsSync(src) && scrub(JSON.stringify(sanitize(JSON.parse(readFileSync(src, 'utf8'))), null, 2) + '\n') !== text) problems.push(`${w.file}: stale — workflows/ changed; run node scripts/bundle-workflows.mjs`);
   }
   for (const f of m.schemas) { const t = readFileSync(join(dir, f.file), 'utf8'); if (sha(t) !== f.sha256) problems.push(`${f.file}: sha256 differs from the manifest`); }
   return problems;

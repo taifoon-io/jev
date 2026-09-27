@@ -13,7 +13,7 @@
 // Keys come from the environment only: TYPESAFE_KEY (your own TypeSafe key, console.typesafe.ai) and
 // TAIFOON_RELAYER_KEY (records the answers on the layer). Neither is printed or written anywhere.
 // Output is @taifoon/term (vendored as ./term.mjs), the same rhythm as `taifoon up` and the STUDIO run log.
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { createInterface } from 'node:readline/promises';
 import { createTerm } from './term.mjs';
 
@@ -35,18 +35,36 @@ function factOf(r) {
   }
 }
 
+const USAGE = 'jev run [--demo | --job <chain>:<id> | --job-file job.json | --evidence pack.json] [--answers answers.json] [--record none|devnet|base|both] [--layer <https url> | --no-layer] [--protocol <name>] [--price-usdc <n>] [--yes] [--json]';
+const PROTOCOLS = ['assurance-hook', 'judge-adapter', 'virtuals-erc8183', 'virtuals-memo-acp', 'bitagent-erc8183'];
+/** A stranger's typo must never run something else: every flag is known, every value checked, exit 2 with the fix. */
+function refuse(msg) { process.stderr.write(`jev run: ${msg}\n  ${USAGE}\n`); process.exit(2); }
+
 export async function run(argv) {
   const a = [...argv];
   const has = (n) => { const i = a.indexOf(n); if (i < 0) return false; a.splice(i, 1); return true; };
-  const val = (n) => { const i = a.indexOf(n); return i >= 0 ? a.splice(i, 2)[1] : undefined; };
+  const val = (n) => {
+    const i = a.indexOf(n); if (i < 0) return undefined;
+    const v = a[i + 1]; if (v === undefined || v.startsWith('--')) refuse(`${n} needs a value`);
+    a.splice(i, 2); return v;
+  };
+  const file = (n) => { const f = val(n); if (f !== undefined && !existsSync(f)) refuse(`${n}: no such file ${f}`); return f; };
   const yes = has('--yes') || !process.stdin.isTTY; const json = has('--json'); const noLayer = has('--no-layer') || argv.includes('--demo') || argv.includes('--job-file');
   const demo = has('--demo');
-  const job = val('--job'); const evFile = val('--evidence');
-  const jobFile = val('--job-file');
-  const ansFile = val('--answers');
+  const job = val('--job'); const evFile = file('--evidence');
+  const jobFile = file('--job-file');
+  const ansFile = file('--answers');
   const rec = demo ? JSON.parse(readFileSync(new URL('../examples/jobs/base-bitagent-7287.recorded.json', import.meta.url), 'utf8')) : null;
   const network = val('--record') ?? val('--network') ?? 'none'; const layer = noLayer ? false : val('--layer');
   const protocol = val('--protocol'); const price = val('--price-usdc');
+  if (a.length) refuse(`unknown flag ${a[0]}`);
+  if (!['none', 'devnet', 'base', 'both'].includes(network)) refuse(`--record is none, devnet, base or both (got ${network})`);
+  if (demo && (job || evFile || jobFile || ansFile)) refuse('--demo replays one recorded job: drop --job, --job-file, --evidence and --answers');
+  if ([job, evFile, jobFile].filter(Boolean).length > 1) refuse('pick one source: --job, --job-file or --evidence');
+  if (job && !/^\d+:.+$/.test(job) && !/^\S+$/.test(job)) refuse(`--job is <chain>:<id>, e.g. 8453:bitagent:8453:7287 (got ${job})`);
+  if (layer && !/^https:\/\//.test(layer)) refuse('--layer must be an https:// URL');
+  if (protocol && !PROTOCOLS.includes(protocol)) refuse(`--protocol is one of ${PROTOCOLS.join(', ')}`);
+  if (price !== undefined && !(Number(price) > 0)) refuse(`--price-usdc must be a positive number (got ${price})`);
   const { pipeline, STEPS, prepareJob } = await import('../dist/index.js');
 
   const t = createTerm({ quiet: json });

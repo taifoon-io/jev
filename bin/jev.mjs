@@ -12,7 +12,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PKG = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 const args = process.argv.slice(2);
 const flag = (n) => { const i = args.indexOf(n); return i >= 0 ? args.splice(i, 2)[1] : undefined; };
-const version = flag('--version') ?? PKG.version;
+// the newest bundle shipped (a bundle is versioned on its own and rebuilt only when the workflows change)
+const BUNDLES = readdirSync(join(ROOT, 'workflows')).filter((d) => /^\d+\.\d+\.\d+$/.test(d)).sort((x, y) => x.localeCompare(y, undefined, { numeric: true }));
+const version = flag('--version') ?? BUNDLES.at(-1) ?? PKG.version;
 const network = flag('--network') ?? 'any';
 const bundle = join(ROOT, 'workflows', version);
 const die = (m) => { console.error(m); process.exit(1); };

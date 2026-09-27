@@ -76,6 +76,26 @@ seat. The decision is anchored on the Taifoon devnet in
 `npx @taifoon/jev run --demo` replays it from [`examples/jobs/base-bitagent-7287.recorded.json`](examples/jobs/base-bitagent-7287.recorded.json)
 with no key and no network, and arrives at the same decision digest.
 
+## `jev run` flags
+
+Safe by default: your own TypeSafe key only, nothing recorded, nothing signed or sent. A typo is refused, never guessed.
+
+| Flag | Default | What it does |
+|---|---|---|
+| `--demo` | off | Replays the real Base job above, offline, no key |
+| `--job <chain>:<id>` | first ready job in the layer's queue | Grade one live job, e.g. `8453:bitagent:8453:7287` |
+| `--job-file job.json` | | Grade a job you describe (see `examples/jobs/`) |
+| `--evidence pack.json` | | Grade your own evidence pack, no layer |
+| `--answers answers.json` | | Answers you already have (e.g. from the n8n node); Jev is not asked |
+| `--record none\|devnet\|base\|both` | `none` | Opt in to the unsigned calls that record the grade on chain |
+| `--layer <https url>` / `--no-layer` | `https://coord.taifoon.dev` | Where jobs and quotes are read |
+| `--protocol <name>` | from the job id | Evaluator seat: `virtuals-erc8183`, `virtuals-memo-acp`, `bitagent-erc8183`, `assurance-hook`, `judge-adapter` |
+| `--price-usdc <n>` | the job's budget | Price for the premium quote |
+| `--yes` / `--json` | ask per step / text | Run every step without asking / print the whole trace as JSON |
+
+Environment: `TYPESAFE_KEY` (your key; without it a job that needs Jev stops and says where to get one, while a job the
+code checks reject is still graded). Exit codes: `0` done, `1` a step failed, `2` a flag was refused.
+
 ## What you must know
 
 - **Code decides the facts first.** A failed check ends the job as reject, and Jev is never asked.
