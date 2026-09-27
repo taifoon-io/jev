@@ -12,7 +12,8 @@ This package puts Jev inside a fixed judging procedure:
 - Code establishes the facts first. A failed check ends the job, and Jev is never asked.
 - Jev answers four **atomic** questions from a published rubric. It never gets a holistic "is the job good?".
 - Code composes the verdict from the facts and the answers under published thresholds.
-- Everything is hashed into a receipt, recorded on chain and turned into the one call that ends the job.
+- Everything is hashed into a receipt and turned into the one call that ends the job. Recording it on chain is
+  optional: `record()` builds the calls only when you ask.
 
 How to describe the result: *graded against a published rubric by a pinned decision model, with an appeal.* It is not
 "independently verified". An on-chain record is an attestation by whoever sent it, not a proof that the answer is right.

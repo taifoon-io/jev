@@ -3,9 +3,11 @@
 //   jev run --job 8453:81100             a job you name (chain:id; ids like bitagent:8453:7287 work too)
 //   jev run --evidence pack.json         your own pack, no layer at all: { subject, state, delivered?, checks?, priceUsdc? }
 //   jev run --job-file job.json          one agent job: { id, task, criteria[], delivered, source?, checks[] } (see examples/jobs/)
-//   jev run --demo                       offline, no key: examples/jobs/research-report.json with SAMPLE answers (not Jev's)
+//   jev run --demo                       offline, no key: replays a REAL graded job (BitAgent 7287 on Base) with Jev's
+//                                        recorded answers, and checks the result against the decision on chain
 //   jev run --answers answers.json       answers you already have (the n8n TypeSafe node's output): Jev is not asked
-//   --network none|devnet|base|both      where record() points the calls (default devnet)
+//   --record none|devnet|base|both       opt-in: where the grade is recorded (default none: the receipt and digests only);
+//                                        --network is the same flag
 //   --layer <url> | --no-layer           the coordination layer (default https://coord.taifoon.dev)
 //   --yes                                run every step without asking;  --json  print the whole trace as JSON at the end
 // Keys come from the environment only: TYPESAFE_KEY (your own TypeSafe key, console.typesafe.ai) and
@@ -25,7 +27,7 @@ function factOf(r) {
     case 'evidence': return `${o.facts} labelled facts · ${o.gaps?.length ?? 0} gaps · ${o.state_chars} characters for Jev to read`;
     case 'facts': return `delivered ${o.delivered ? 'yes' : 'no'} · checks ${o.checksOk === false ? 'failed' : o.checksOk ? 'ok' : 'none'}${o.priceUsdc != null ? ` · ${o.priceUsdc} USDC` : ''}`;
     case 'grade': return `${o.verdict} · ${o.reasons?.[0] ?? ''}${o.model ? ` · ${o.model}` : ''}`;
-    case 'record': return `${o.status} · ${(o.calls ?? []).join(', ')}${typeof o.layer === 'object' && o.layer ? ` · layer ${short(o.layer.digest)}` : ''}`;
+    case 'record': return `${o.status === 'none' ? 'not recorded (opt in with --record)' : `${o.status} · ${(o.calls ?? []).join(', ')}`}${o.recording?.held ? ` · layer held it: ${o.recording.held}` : ''}${typeof o.layer === 'object' && o.layer ? ` · layer ${short(o.layer.digest)}` : ''}`;
     case 'evaluator': return `${o.fn} on ${o.protocol} · signed by ${o.signer}`;
     case 'premium': return `${o.guaranteed ? 'guaranteed' : 'not guaranteed'} · premium ${o.premium_label ?? o.premium_ratio}`;
     case 'verify': return o.ok ? `the receipt re-derives · ${Object.keys(o.checks ?? {}).length} checks` : `problems: ${(o.problems ?? []).join('; ')}`;
@@ -40,20 +42,21 @@ export async function run(argv) {
   const yes = has('--yes') || !process.stdin.isTTY; const json = has('--json'); const noLayer = has('--no-layer') || argv.includes('--demo') || argv.includes('--job-file');
   const demo = has('--demo');
   const job = val('--job'); const evFile = val('--evidence');
-  const jobFile = val('--job-file') ?? (demo ? new URL('../examples/jobs/research-report.json', import.meta.url).pathname : undefined);
-  const ansFile = val('--answers') ?? (demo ? new URL('../examples/jobs/research-report.sample-answers.json', import.meta.url).pathname : undefined);
-  const network = val('--network') ?? 'devnet'; const layer = noLayer ? false : val('--layer');
+  const jobFile = val('--job-file');
+  const ansFile = val('--answers');
+  const rec = demo ? JSON.parse(readFileSync(new URL('../examples/jobs/base-bitagent-7287.recorded.json', import.meta.url), 'utf8')) : null;
+  const network = val('--record') ?? val('--network') ?? 'none'; const layer = noLayer ? false : val('--layer');
   const protocol = val('--protocol'); const price = val('--price-usdc');
   const { pipeline, STEPS, prepareJob } = await import('../dist/index.js');
 
   const t = createTerm({ quiet: json });
   const rl = yes ? null : createInterface({ input: process.stdin, output: process.stdout });
-  t.info(`jev run · ${noLayer ? 'independent (no layer)' : `layer ${layer ?? 'https://coord.taifoon.dev'}`} · grade on ${demo ? 'SAMPLE answers (not from Jev)' : ansFile ? 'supplied answers' : process.env.TYPESAFE_KEY ? 'your TypeSafe key' : 'no key: set TYPESAFE_KEY, or try --demo'} · record → ${network}${process.env.TAIFOON_RELAYER_KEY ? ' + the layer' : ''}`);
+  t.info(`jev run · ${noLayer ? 'independent (no layer)' : `layer ${layer ?? 'https://coord.taifoon.dev'}`} · grade on ${demo ? `Jev's recorded answers for ${rec.job.ref} (${rec.job.task})` : ansFile ? 'supplied answers' : process.env.TYPESAFE_KEY ? 'your TypeSafe key' : 'no key: set TYPESAFE_KEY, or try --demo'} · record → ${network === 'none' ? 'none (opt in with --record devnet|base|both)' : network}${process.env.TAIFOON_RELAYER_KEY ? ' + the layer' : ''}`);
 
   const trace = await pipeline({
     layer, job, network, protocol, priceUsdc: price ? Number(price) : undefined,
-    evidence: jobFile ? prepareJob(JSON.parse(readFileSync(jobFile, 'utf8'))).pack : evFile ? JSON.parse(readFileSync(evFile, 'utf8')) : undefined,
-    answers: ansFile ? JSON.parse(readFileSync(ansFile, 'utf8')) : undefined,
+    evidence: rec ? { subject: rec.subject.ref, chainId: rec.subject.chainId, label: rec.subject.label, state: rec.evidence, delivered: rec.facts.delivered, checks: rec.facts.checks } : jobFile ? prepareJob(JSON.parse(readFileSync(jobFile, 'utf8'))).pack : evFile ? JSON.parse(readFileSync(evFile, 'utf8')) : undefined,
+    answers: rec ? rec.answers : ansFile ? JSON.parse(readFileSync(ansFile, 'utf8')) : undefined, ...(rec ? { model: rec.model } : {}),
     key: process.env.TYPESAFE_KEY || null, relayerKey: process.env.TAIFOON_RELAYER_KEY || null,
     before: async (s) => {
       t.step(STEPS.indexOf(s) + 1, STEPS.length, s.title);
@@ -74,7 +77,10 @@ export async function run(argv) {
   else if (trace.receipt) {
     t.line('');
     t.say(`verdict ${trace.receipt.verdict} · receipt ${trace.receipt.receiptHash}`);
-    if (trace.recorded) t.cmd(`npx @taifoon/jev verify ${trace.recorded.digests.answers}`);
+    if (rec) {
+      const same = trace.receipt.decision?.digest === rec.recorded.digest;
+      (same ? t.ok : t.fail)(`${same ? 'same decision digest as' : 'differs from'} the one recorded on chain: ${rec.recorded.decision}, anchored in ${rec.recorded.anchor.tx}`);
+    } else if (trace.recorded && trace.recorded.status !== 'none') t.cmd(`npx @taifoon/jev verify ${trace.recorded.digests.answers}`);
   }
   process.exit(trace.steps.some((s) => !s.ok) ? 1 : 0);
 }

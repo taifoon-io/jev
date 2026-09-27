@@ -1,6 +1,6 @@
 {
-  "bundle": "jev-workflows-0.1.1",
-  "package": "@taifoon/jev@0.1.1",
+  "bundle": "jev-workflows-0.2.0",
+  "package": "@taifoon/jev@0.2.0",
   "workflows": [
     {
       "file": "hire-judge-settle.json",
@@ -121,7 +121,7 @@
     {
       "file": "schemas/settlement.json",
       "$id": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
-      "sha256": "9f1aa14aa3e2272f94aa9c5fc976e0e2ff8787f689cded87d43d0d0ee969afcc"
+      "sha256": "50e7e12c6f4b076d6f2df36fa2aedac09130d274bac223bc2aa0ea8f768ba233"
     },
     {
       "file": "schemas/verdict.json",

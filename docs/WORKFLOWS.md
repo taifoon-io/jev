@@ -13,8 +13,8 @@ The node outputs the receipt and the unsigned calls, and it signs nothing. With 
 
 ## Workflows
 
-`workflows/0.1.1/` holds the four n8n workflows that run Jev. The same files are attached to the
-GitHub release as `jev-workflows-0.1.1.zip`:
+`workflows/0.2.0/` holds the four n8n workflows that run Jev. The same files are attached to the
+GitHub release as `jev-workflows-0.2.0.zip`:
 
 - **`hire-judge-settle.json`** runs hire → prepare (facts) → TypeSafe (the four RUBRIC_v1 questions) → answers
   (verdict, recorded and anchored) → settle on devnet. Executions 86 and 88 of this workflow are the golden runs above.
@@ -24,8 +24,8 @@ GitHub release as `jev-workflows-0.1.1.zip`:
 
 Credential references are placeholders: `{ "id": "", "name": "REPLACE: <credential type>" }`. After import, pick your
 own credential of that type. Each step names the entity it takes and emits by `$id` (`meta.taifoon.steps`). The schemas
-behind those `$id`s are in `workflows/0.1.1/schemas/`. `manifest.json` pins every file by sha256.
-`workflows/0.1.1/README.md` explains each workflow step by step and lists the nodes and credentials it needs:
+behind those `$id`s are in `workflows/0.2.0/schemas/`. `manifest.json` pins every file by sha256.
+`workflows/0.2.0/README.md` explains each workflow step by step and lists the nodes and credentials it needs:
 
 - `@taifoon/n8n-nodes-typesafe`, tested with 1.3.0, is on npm.
 - `n8n-nodes-taifoon`, tested with 0.4.2, and `n8n-nodes-taifoon-devnet-signer`, tested with 0.2.0, are custom

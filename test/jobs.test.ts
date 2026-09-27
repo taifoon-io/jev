@@ -6,7 +6,7 @@ import report from '../examples/jobs/research-report.json' with { type: 'json' }
 import thin from '../examples/jobs/research-report-no-sources.json' with { type: 'json' };
 import invoice from '../examples/jobs/invoice-extraction.json' with { type: 'json' };
 import signal from '../examples/jobs/signal-unsupported.json' with { type: 'json' };
-import sample from '../examples/jobs/research-report.sample-answers.json' with { type: 'json' };
+import real from '../examples/jobs/base-bitagent-7287.recorded.json' with { type: 'json' };
 
 const spec = (j: unknown) => j as JobSpec;
 const answers = (spec_met: number, unsupported: number, ending: string, cheat = 0.03): Answer[] => [
@@ -67,11 +67,18 @@ describe('prepareJob(): the data a grader needs, from the job as the buyer laid 
     expect(runCheck({ kind: 'deadline', submittedAt: '2026-09-28T00:00:00Z', deadline: '2026-09-27T00:00:00Z' }, '').ok).toBe(false);
   });
 
-  it('the offline demo: the same job through pipeline() with the labelled sample answers, no network', async () => {
+  it('a REAL job on Base (BitAgent 7287), graded by Jev: the recorded answers re-derive the decision digest on chain', async () => {
     const f = vi.fn() as unknown as typeof fetch;
-    const t = await pipeline({ layer: false, fetch: f, evidence: prepareJob(spec(report)).pack, answers: sample as unknown as Answer[] });
+    const t = await pipeline({ layer: false, fetch: f, model: real.model, answers: real.answers as unknown as Answer[],
+      evidence: { subject: real.subject.ref, chainId: real.subject.chainId, label: real.subject.label, state: real.evidence, delivered: real.facts.delivered, checks: real.facts.checks } });
     expect(f).not.toHaveBeenCalled();
-    expect(t.receipt!.verdict).toBe('complete');
-    expect((await verify(t.receipt!, { chain: false })).ok).toBe(true);
+    const r = t.receipt!;
+    expect(r.inputDigest).toBe(real.recorded.input_digest);
+    expect(r.subjectId).toBe(real.recorded.subject_id);
+    expect(r.decision!.digest).toBe(real.recorded.digest);
+    expect(r.decision!.confidenceBps).toBe(real.recorded.confidence_bps);
+    expect(r.verdict).toBe('reject');                       // spec_met 0.03: the delivery is a digest, the report is not shown
+    expect(t.evaluator!.fn).toBe('reject(uint256,bytes32,bytes)');
+    expect((await verify(r, { chain: false })).ok).toBe(true);
   });
 });

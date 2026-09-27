@@ -157,6 +157,7 @@
         "runner",
         "relayer",
         "evaluator-leg",
+        "keeper",
         "site",
         "n8n"
       ],

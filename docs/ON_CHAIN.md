@@ -8,7 +8,7 @@ them.
 | JevAnswerLog | `0xD8c1d8188Fc8EE388792f6EB3B3dbd4f341Ba8e3` | Append-only, no owner. Recorders fixed at deploy are `trusted`; any other sender is logged with `trusted = false` |
 | JevDecisionLog | `0x1D622511862DD7DEffB8fEeBc225E0FAdA1e9A05` | Append-only, no owner, no upgrade. The recorder is `msg.sender` |
 
-On Base (8453), since 0.1.1:
+On Base (8453), since 0.2.0:
 
 | Contract | Address | Rule |
 |---|---|---|

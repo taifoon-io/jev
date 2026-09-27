@@ -55,12 +55,16 @@ export type PipelineOpts = {
   /** a job to grade, `8453:81100` or { chainId, jobId }; omitted with the layer on: the first ready row of the queue */
   job?: string | { chainId: number; jobId: string };
   /** your own evidence pack; skips pick + evidence */
-  evidence?: { subject: string; state: string; delivered?: boolean; checks?: FactsInput['checks']; priceUsdc?: number | null; seller?: string };
+  evidence?: { subject: string; chainId?: number; label?: string; state: string; delivered?: boolean; checks?: FactsInput['checks']; priceUsdc?: number | null; seller?: string };
   /** your TypeSafe key from console.typesafe.ai (never stored, never recorded) */
   key?: string | null;
   /** answers you already have (e.g. from the n8n TypeSafe node): Jev is not asked */
   answers?: Record<string, Answer> | Answer[];
+  /** the model that produced supplied `answers` (e.g. "jev-1.13.0"); it is part of the decision digest */
+  model?: string | null;
   /** where record() points the calls; default devnet */
+  /** recording is opt-in: where record() points the calls and what the layer may record. Default none: the receipt and
+   *  its digests only (recomputable offline), no transaction. */
   network?: Network;
   /** X-API-Key for POST /v1/judge/answers/record; omitted: nothing is written to the layer */
   relayerKey?: string | null;
@@ -146,7 +150,7 @@ export async function pipeline(o: PipelineOpts = {}): Promise<Trace> {
   const failed = () => t.steps.some((s) => !s.ok || s.stopped);
 
   await step('pick', async () => {
-    if (o.evidence) { t.job = { chainId: 0, jobId: o.evidence.subject, seller: o.evidence.seller ?? null }; return { skip: 'your own evidence pack' }; }
+    if (o.evidence) { t.job = { chainId: o.evidence.chainId ?? 0, jobId: o.evidence.subject, seller: o.evidence.seller ?? null }; return { skip: 'your own evidence pack' }; }
     if (o.job) { t.job = { ...parseJob(o.job), seller: null }; return t.job; }
     const q = await getJson<{ rows: QueueRow[] }>(f, `${layer}/v1/judge/queue?limit=50`);
     const row = q.rows.find(readable);
@@ -174,8 +178,8 @@ export async function pipeline(o: PipelineOpts = {}): Promise<Trace> {
   if (failed()) return t;
 
   await step('grade', async () => {
-    const g: GradeInput = { subject: o.subject ? o.subject(t.job!) : { chainId: t.job!.chainId, ref: t.job!.jobId }, evidence: pack.state, facts: runFacts(factsIn!), fetch: f, ...(o.caller ? { caller: o.caller } : {}) };
-    if (o.answers) g.answers = o.answers; else if (o.key) g.key = o.key;
+    const g: GradeInput = { subject: o.subject ? o.subject(t.job!) : { chainId: t.job!.chainId, ref: t.job!.jobId, ...(o.evidence?.label ? { label: o.evidence.label } : {}) }, evidence: pack.state, facts: runFacts(factsIn!), fetch: f, ...(o.caller ? { caller: o.caller } : {}) };
+    if (o.answers) { g.answers = o.answers; if (o.model) g.model = o.model; } else if (o.key) g.key = o.key;
     else throw new Error('Jev needs your TypeSafe key: set TYPESAFE_KEY (console.typesafe.ai), or pass answers you already have');
     t.receipt = await grade(g);
     return { verdict: t.receipt.verdict, reasons: t.receipt.reasons, model: t.receipt.model, receiptHash: t.receipt.receiptHash };
@@ -185,10 +189,11 @@ export async function pipeline(o: PipelineOpts = {}): Promise<Trace> {
 
   await step('record', async () => {
     if (!receipt.decision) return { skip: `nothing to record: ${receipt.reasons[0] ?? receipt.verdict} (the facts decided; Jev was not asked)` };
-    t.recorded = await record(receipt, { network: o.network ?? 'devnet' });
+    t.recorded = await record(receipt, { network: o.network ?? 'none' });
     if (layer && o.relayerKey && receipt.answersRecord)
-      t.layerRecord = await getJson<LayerRecord>(f, `${layer}/v1/judge/answers/record`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': o.relayerKey }, body: JSON.stringify(receipt.answersRecord) });
-    return { status: t.recorded.status, calls: t.recorded.calls.map((c) => `${c.fn}@${c.chainId}${c.to ? '' : ' (no address)'}`), digests: t.recorded.digests, layer: t.layerRecord ?? (layer ? 'not written: pass a relayer key to record on the layer' : 'independent mode') };
+      t.layerRecord = await getJson<LayerRecord>(f, `${layer}/v1/judge/answers/record`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': o.relayerKey }, body: JSON.stringify({ ...receipt.answersRecord, record: o.network ?? 'none' }) });
+    const rec = (t.layerRecord as { recording?: { used?: unknown; held?: { message?: string } } } | null)?.recording;
+    return { status: t.recorded.status, recording: rec ? { used: rec.used ?? null, held: rec.held?.message ?? null } : null, calls: t.recorded.calls.map((c) => `${c.fn}@${c.chainId}${c.to ? '' : ' (no address)'}`), digests: t.recorded.digests, layer: t.layerRecord ?? (layer ? 'not written: pass a relayer key to record on the layer' : 'independent mode') };
   });
 
   await step('evaluator', async () => {

@@ -1,8 +1,8 @@
 # @taifoon/jev
 
 LLM-as-a-judge for agent jobs, callable from a contract's evaluator seat. TypeSafe's Jev, a System One model pinned
-to `jev-1.13.0`, answers a published rubric as structured output. Code composes the verdict, hashes a receipt,
-records it on chain and returns the one call that ends the job. Mid-band answers go to needs_review, which ends nothing.
+to `jev-1.13.0`, answers a published rubric as structured output. Code composes the verdict, hashes a receipt
+and returns the one call that ends the job. Recording the grade on chain is optional (`record()`, or `--record`). Mid-band answers go to needs_review, which ends nothing.
 
 Built by Taifoon. No runtime dependencies, no key inside, and it signs nothing.
 
@@ -37,15 +37,35 @@ What the grader needs, and where it comes from:
 | `delivered` | what the agent handed in | code first, then Jev |
 | `checks` | `includes` · `sources` · `json` · `deadline` | code; a failed check rejects before Jev is asked |
 
-Four worked jobs are in [`examples/jobs/`](examples/jobs): a research report that meets the brief, the same report
+Four illustrative jobs, written by hand, are in [`examples/jobs/`](examples/jobs): a research report that meets the brief, the same report
 without its sources (code rejects it), an invoice extraction checked against its source, and a trading signal whose
-claims the evidence cannot support. They are illustrative, written by hand. Grade one with your key:
+claims the evidence cannot support. Grade one with your key:
 
 ```
 TYPESAFE_KEY=… npx @taifoon/jev run --job-file examples/jobs/invoice-extraction.json
-npx @taifoon/jev run --demo      # offline, no key: every step with labelled sample answers (not Jev's)
+npx @taifoon/jev run --demo      # offline, no key: replays the real Base job below and checks it against the chain
 npx @taifoon/jev run             # a live Base job from the coordination layer's queue (needs TYPESAFE_KEY)
 ```
+
+## A real job, graded
+
+[BitAgent](https://basescan.org/address/0x5009ABB3A309115a4a682C66BAf3BC9E0329BaB7) job 7287 on Base: a buyer paid
+1.5 USDC for `equity_research where ticker is 'AAPL'`. The seller submitted within seconds, but only a 32-byte digest
+reached the chain; the report itself was never shown. Code confirmed the job was funded and delivered, then Jev
+(`jev-1.13.0`) answered on 27 September 2026:
+
+| Question | Jev's answer |
+|---|---|
+| spec_met: does the delivery meet the task? | **no** 0.97 · yes 0.03 |
+| unsupported_claim | no 0.94 · yes 0.06 |
+| ending | **needs_review** 0.93 · complete 0.07 |
+| cheat_shaped | no 0.56 · yes 0.44 |
+
+Code composed **reject** (spec_met ≤ 0.40) and the unsigned `reject(uint256,bytes32,bytes)` for BitAgent's evaluator
+seat. The decision is anchored on the Taifoon devnet in
+[`0xffc608f8…c622`](https://www.taifoon.io/scan/36927/tx/0xffc608f8c8b39ff6992e8ec8d589b8784a3cf4199359c408f8eed1d4b581c622).
+`npx @taifoon/jev run --demo` replays it from [`examples/jobs/base-bitagent-7287.recorded.json`](examples/jobs/base-bitagent-7287.recorded.json)
+with no key and no network, and arrives at the same decision digest.
 
 ## What you must know
 

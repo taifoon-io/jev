@@ -30,7 +30,7 @@ function layer(over: Record<string, (init?: RequestInit) => Response> = {}) {
 describe('pipeline() on the coordination layer', () => {
   it('runs all eight steps on the first READABLE queue row, skipping the mislabelled devnet rows', async () => {
     const { f, seen } = layer();
-    const t = await pipeline({ fetch: f, key: 'apikey_x' });
+    const t = await pipeline({ fetch: f, key: 'apikey_x', network: 'devnet' });
     expect(t.steps.map((s) => s.id)).toEqual(STEPS.map((s) => s.id));
     expect(t.steps.filter((s) => !s.ok)).toEqual([]);
     expect(t.job).toEqual({ chainId: 8453, jobId: 'bitagent:8453:7287', seller: '0x1112889be806840a66419ea1e8d4dd21852993e5' });
@@ -43,6 +43,14 @@ describe('pipeline() on the coordination layer', () => {
     // the quote asked for the job's own budget on Base
     const q = seen.find((s) => s.url.includes('/v1/pools/quote'))!;
     expect(JSON.parse(String(q.init!.body))).toEqual({ seller: '0x1112889be806840a66419ea1e8d4dd21852993e5', price_usdc: 1.5, chainId: 8453 });
+  });
+
+  it('recording is opt-in: by default the layer is asked to record nothing, and a held recording is shown', async () => {
+    const { f, seen } = layer({ '/v1/judge/answers/record': () => json({ ok: true, digest: '0xabc', recording: { requested: 'base', allowed: 'base', used: 'none', held: { network: 'base', reason: 'budget', message: 'Base budget spent for today' } } }) });
+    const t = await pipeline({ fetch: f, key: 'apikey_x', job: '8453:bitagent:8453:7287', relayerKey: 'test-key' });
+    const post = seen.find((s) => s.url.endsWith('/v1/judge/answers/record'))!;
+    expect(JSON.parse(String(post.init!.body)).record).toBe('none');
+    expect(t.steps.find((s) => s.id === 'record')!.out).toMatchObject({ status: 'none', recording: { used: 'none', held: 'Base budget spent for today' } });
   });
 
   it('with a relayer key, POSTs the jev.answer.v1 record to /v1/judge/answers/record with X-API-Key', async () => {
@@ -86,7 +94,9 @@ describe('pipeline() independent of the layer', () => {
     expect(f).not.toHaveBeenCalled();
     expect(t.receipt!.verdict).toBe('complete');
     expect(t.steps.find((s) => s.id === 'premium')!.skipped).toMatch(/independent/);
-    expect(t.recorded!.status).toBe('ready');
+    expect(t.recorded!.status).toBe('none');            // recording is opt-in: the receipt and digests, no calls
+    expect(t.recorded!.calls).toEqual([]);
+    expect(t.recorded!.digests.answers).toMatch(/^0x[0-9a-f]{64}$/);
     expect((await verify(t.receipt!, { chain: false })).ok).toBe(true);
   });
 

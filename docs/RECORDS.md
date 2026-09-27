@@ -7,4 +7,4 @@
   options, value, probabilities, confidence], input_digest })`, with keys sorted.
   `subjectId = keccak256(abi.encode("taifoon.decision.subject.v1", chainId, at, ref))`.
 - **jev.answer.v1.** `digest = sha256(canonical record)`, covering questions, answers with distributions, model,
-  upstream model, latency, credential path (`caller-credential`; records made before 0.1.1 may say `trial`), caller and time.
+  upstream model, latency, credential path (`caller-credential`; records made before 0.2.0 may say `trial`), caller and time.
