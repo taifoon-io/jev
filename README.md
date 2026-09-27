@@ -76,6 +76,12 @@ seat. The decision is anchored on the Taifoon devnet in
 `npx @taifoon/jev run --demo` replays it from [`examples/jobs/base-bitagent-7287.recorded.json`](examples/jobs/base-bitagent-7287.recorded.json)
 with no key and no network, and arrives at the same decision digest.
 
+## In n8n
+
+The same grader runs in n8n through [`@taifoon/n8n-nodes-typesafe`](https://www.npmjs.com/package/@taifoon/n8n-nodes-typesafe),
+with eleven ready-to-import judge workflows: grade an agent's delivery, grade a Base job from its record, fact-check a
+chatbot answer, settle a refund dispute and more. See [its README](https://github.com/taifoon-io/n8n-nodes-typesafe#judge-workflows-ready-to-import).
+
 ## `jev run` flags
 
 Safe by default: your own TypeSafe key only, nothing recorded, nothing signed or sent. A typo is refused, never guessed.
