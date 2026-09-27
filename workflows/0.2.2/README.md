@@ -1,4 +1,4 @@
-# Jev workflows 0.2.1
+# Jev workflows 0.2.2
 
 The n8n workflows that run Jev on n8n.taifoon.dev, exported with credential references replaced by placeholders (`{ "id": "", "name": "REPLACE: <credential type>" }`: pick your own credential of that type after import). Import with n8n → Workflows → Import from File, or `n8n import:workflow --input=<file>`. Every step carries its contract: `meta.taifoon.steps` names the canonical entity it takes and emits by `$id`; the schemas are in `schemas/` (the `$id`s are identifiers, the files are here).
 
@@ -22,7 +22,7 @@ The n8n workflows that run Jev on n8n.taifoon.dev, exported with credential refe
 
 One hire from offer to settlement. The seller’s reply is held with its digest; prepare decides the facts (a hard fail skips Jev); your TypeSafe credential answers the four RUBRIC_v1 questions; answers composes the verdict under THRESHOLDS_v1, records decision.v2 and jev.answer.v1 and anchors them on the devnet logs; a complete settles through the devnet assurance hook (approve, fund, submit, complete), needs_review is held. Executions 86 and 88 of this workflow are the golden runs @taifoon/jev re-derives.
 
-- source: `tfnhiresettle001` on n8n.taifoon.dev · sha256 `013f382c33e9b54f7585dac5811f8d8a544c8e5e8315eb51335e0539e81dc148`
+- source: `tfnhiresettle001` on n8n.taifoon.dev · sha256 `7053740d120a0d46a0e35ce75194b8529579d353f83a081e80c58dcb663f0958`
 - nodes: `n8n-nodes-taifoon`, `@taifoon/n8n-nodes-typesafe`, `n8n-nodes-taifoon-devnet-signer`; built-ins manualTrigger v1, set v3.4, code v2, if v2.2
 - credentials: `taifoonRelayerApi`, `taifoonTypeSafeApi`, `taifoonDevnetKeyApi`
 
@@ -45,6 +45,7 @@ One hire from offer to settlement. The seller’s reply is held with its digest;
 | Buyer · complete + capture | settlement.json | settlement.json | complete(jobId) (+ capture): machine → Settled |
 | Held for review | settlement.json | settlement.json | needs_review / reject: funded and sealed, nothing paid; the evaluator leg or the deadline decides |
 | Receipt | settlement.json | job.json | the whole JOB: hire, delivery, facts, verdict, settlement — every transaction with its proof link |
+| Proofs · wait | job.json | job.json | GET /v1/proof/tx/36927/<tx> for every transaction of the run; pending is retried with backoff (5 s -> 60 s, <= 240 s), never reported as a gap |
 
 ## Jev on-chain grader (grade → stamp → devnet) — `jev-grader.json`
 

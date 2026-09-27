@@ -1,13 +1,13 @@
 {
-  "bundle": "jev-workflows-0.2.1",
-  "package": "@taifoon/jev@0.2.1",
+  "bundle": "jev-workflows-0.2.2",
+  "package": "@taifoon/jev@0.2.2",
   "workflows": [
     {
       "file": "hire-judge-settle.json",
       "source_id": "tfnhiresettle001",
       "name": "Taifoon — HIRE → JUDGE → SETTLE (devnet 36927)",
-      "sha256": "013f382c33e9b54f7585dac5811f8d8a544c8e5e8315eb51335e0539e81dc148",
-      "nodes": 17,
+      "sha256": "7053740d120a0d46a0e35ce75194b8529579d353f83a081e80c58dcb663f0958",
+      "nodes": 18,
       "packages": [
         "n8n-nodes-taifoon",
         "@taifoon/n8n-nodes-typesafe",
