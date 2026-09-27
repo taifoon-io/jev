@@ -78,6 +78,16 @@ seat. The decision is anchored on the Taifoon devnet in
 `npx @taifoon/jev run --demo` replays it from [`examples/jobs/base-bitagent-7287.recorded.json`](examples/jobs/base-bitagent-7287.recorded.json)
 with no key and no network, and arrives at the same decision digest.
 
+## In Claude Code and other agents
+
+The repository ships a `jev-grader` skill that teaches an agent to grade a delivery the right way: the job as the buyer
+laid it out, your own key from the environment, and needs_review surfaced instead of overruled.
+
+```
+claude plugin marketplace add taifoon-io/jev && claude plugin install jev@taifoon-jev   # Claude Code
+npx skills add taifoon-io/jev --skill jev-grader                                        # Codex, Cursor, Cline and others
+```
+
 ## In n8n
 
 The same grader runs in n8n through [`@taifoon/n8n-nodes-typesafe`](https://www.npmjs.com/package/@taifoon/n8n-nodes-typesafe),

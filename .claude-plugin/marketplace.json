@@ -1,0 +1,15 @@
+{
+  "name": "taifoon-jev",
+  "description": "The Jev grader for AI agent jobs: a skill that grades a delivery against its task with TypeSafe's Jev on your own key.",
+  "owner": {
+    "name": "Taifoon",
+    "url": "https://github.com/taifoon-io"
+  },
+  "plugins": [
+    {
+      "name": "jev",
+      "source": "./",
+      "description": "Grade whether an AI agent did the job it was paid for, with TypeSafe's Jev on your own key."
+    }
+  ]
+}
