@@ -55,7 +55,7 @@ export type PipelineOpts = {
   /** a job to grade, `8453:81100` or { chainId, jobId }; omitted with the layer on: the first ready row of the queue */
   job?: string | { chainId: number; jobId: string };
   /** your own evidence pack; skips pick + evidence */
-  evidence?: { subject: string; chainId?: number; label?: string; state: string; delivered?: boolean; checks?: FactsInput['checks']; priceUsdc?: number | null; seller?: string };
+  evidence?: { subject: string; chainId?: number; label?: string; from?: string; state: string; delivered?: boolean; checks?: FactsInput['checks']; priceUsdc?: number | null; seller?: string };
   /** your TypeSafe key from console.typesafe.ai (never stored, never recorded) */
   key?: string | null;
   /** answers you already have (e.g. from the n8n TypeSafe node): Jev is not asked */
@@ -150,7 +150,7 @@ export async function pipeline(o: PipelineOpts = {}): Promise<Trace> {
   const failed = () => t.steps.some((s) => !s.ok || s.stopped);
 
   await step('pick', async () => {
-    if (o.evidence) { t.job = { chainId: o.evidence.chainId ?? 0, jobId: o.evidence.subject, seller: o.evidence.seller ?? null }; return { skip: 'your own evidence pack' }; }
+    if (o.evidence) { t.job = { chainId: o.evidence.chainId ?? 0, jobId: o.evidence.subject, seller: o.evidence.seller ?? null }; return { skip: o.evidence.from ?? 'your own evidence pack' }; }
     if (o.job) { t.job = { ...parseJob(o.job), seller: null }; return t.job; }
     const q = await getJson<{ rows: QueueRow[] }>(f, `${layer}/v1/judge/queue?limit=50`);
     const row = q.rows.find(readable);
@@ -162,7 +162,7 @@ export async function pipeline(o: PipelineOpts = {}): Promise<Trace> {
   if (failed()) return t;
 
   await step('evidence', async () => {
-    if (o.evidence) { ev = { chainId: 0, jobId: o.evidence.subject, state: o.evidence.state, facts: [] }; return { skip: 'your own evidence pack' }; }
+    if (o.evidence) { ev = { chainId: 0, jobId: o.evidence.subject, state: o.evidence.state, facts: [] }; return { skip: o.evidence.from ?? 'your own evidence pack' }; }
     ev = await getJson<Evidence>(f, `${layer}/v1/judge/evidence/${t.job!.chainId}/${encodeURIComponent(t.job!.jobId)}`);
     t.job!.seller ??= fact(ev, /^seller$/i) ?? null;
     return { facts: ev.facts.length, gaps: ev.gaps ?? [], state_chars: ev.state.length };
@@ -211,7 +211,7 @@ export async function pipeline(o: PipelineOpts = {}): Promise<Trace> {
 
   await step('premium', async () => {
     const seller = t.job!.seller;
-    if (!layer) return { skip: 'independent mode: price it with @taifoon/jev-wilson (premium({ k, n }, { price }))' };
+    if (!layer) return { skip: 'offline: the premium quote reads the seller\'s record from the layer' };
     if (!seller) return { skip: 'no seller address in the evidence' };
     const price = o.priceUsdc ?? budget;
     if (!price) return { skip: 'no price for the job' };

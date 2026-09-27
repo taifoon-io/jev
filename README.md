@@ -12,6 +12,8 @@
 npx @taifoon/jev run --demo
 ```
 
+![npx @taifoon/jev run --demo: a real BitAgent job on Base, graded by Jev, checked against the chain](https://raw.githubusercontent.com/taifoon-io/jev/main/docs/demo.gif)
+
 Then grade your own with your TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai). No runtime
 dependencies, no key inside, and it signs nothing. Recording a grade on chain is optional.
 
@@ -143,9 +145,6 @@ Each is tested against calldata a mined transaction carried.
 npx @taifoon/jev verify <digest> --network base
 npx @taifoon/jev workflows export ./jev-workflows
 ```
-
-Pricing the next job from a seller's record is a separate package:
-[`@taifoon/jev-wilson`](https://github.com/taifoon-io/jev-wilson).
 
 ## Licence
 

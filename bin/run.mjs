@@ -69,16 +69,16 @@ export async function run(argv) {
 
   const t = createTerm({ quiet: json });
   const rl = yes ? null : createInterface({ input: process.stdin, output: process.stdout });
-  t.info(`jev run · ${noLayer ? 'independent (no layer)' : `layer ${layer ?? 'https://coord.taifoon.dev'}`} · grade on ${demo ? `Jev's recorded answers for ${rec.job.ref} (${rec.job.task})` : ansFile ? 'supplied answers' : process.env.TYPESAFE_KEY ? 'your TypeSafe key' : 'no key: set TYPESAFE_KEY, or try --demo'} · record → ${network === 'none' ? 'none (opt in with --record devnet|base|both)' : network}${process.env.TAIFOON_RELAYER_KEY ? ' + the layer' : ''}`);
+  t.info(`jev run · ${noLayer ? 'offline' : `layer ${layer ?? 'https://coord.taifoon.dev'}`} · grade on ${demo ? `Jev's recorded answers for ${rec.job.ref} (${rec.job.task})` : ansFile ? 'supplied answers' : process.env.TYPESAFE_KEY ? 'your TypeSafe key' : 'no key: set TYPESAFE_KEY, or try --demo'} · record → ${network === 'none' ? 'none (opt in with --record devnet|base|both)' : network}${process.env.TAIFOON_RELAYER_KEY ? ' + the layer' : ''}`);
 
   const trace = await pipeline({
     layer, job, network, protocol, priceUsdc: price ? Number(price) : undefined,
-    evidence: rec ? { subject: rec.subject.ref, chainId: rec.subject.chainId, label: rec.subject.label, state: rec.evidence, delivered: rec.facts.delivered, checks: rec.facts.checks } : jobFile ? prepareJob(JSON.parse(readFileSync(jobFile, 'utf8'))).pack : evFile ? JSON.parse(readFileSync(evFile, 'utf8')) : undefined,
+    evidence: rec ? { subject: rec.subject.ref, from: `the recorded job ${rec.job.ref} (${rec.job.protocol}, ${rec.job.price})`, chainId: rec.subject.chainId, label: rec.subject.label, state: rec.evidence, delivered: rec.facts.delivered, checks: rec.facts.checks } : jobFile ? prepareJob(JSON.parse(readFileSync(jobFile, 'utf8'))).pack : evFile ? JSON.parse(readFileSync(evFile, 'utf8')) : undefined,
     answers: rec ? rec.answers : ansFile ? JSON.parse(readFileSync(ansFile, 'utf8')) : undefined, ...(rec ? { model: rec.model } : {}),
     key: process.env.TYPESAFE_KEY || null, relayerKey: process.env.TAIFOON_RELAYER_KEY || null,
     before: async (s) => {
       t.step(STEPS.indexOf(s) + 1, STEPS.length, s.title);
-      if (s.route) t.note(s.route);
+      if (s.route && !noLayer) t.note(s.route);
       if (!rl) return true;
       const r = (await rl.question(s.required ? '  enter = run · q = quit › ' : '  enter = run · s = skip · q = quit › ')).trim().toLowerCase();
       if (r === 'q') { rl.close(); process.exit(0); }

@@ -93,7 +93,7 @@ describe('pipeline() independent of the layer', () => {
     const t = await pipeline({ layer: false, fetch: f, evidence: { subject: 'my-protocol:job-7', state: 'task: summarise X\ndelivered: a summary of X', checks: { schema_ok: true } }, answers: CLEAN.map(({ id, value, confidence, probabilities }) => ({ id, value, confidence, probabilities })) });
     expect(f).not.toHaveBeenCalled();
     expect(t.receipt!.verdict).toBe('complete');
-    expect(t.steps.find((s) => s.id === 'premium')!.skipped).toMatch(/independent/);
+    expect(t.steps.find((s) => s.id === 'premium')!.skipped).toMatch(/offline/);
     expect(t.recorded!.status).toBe('none');            // recording is opt-in: the receipt and digests, no calls
     expect(t.recorded!.calls).toEqual([]);
     expect(t.recorded!.digests.answers).toMatch(/^0x[0-9a-f]{64}$/);

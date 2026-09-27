@@ -64,7 +64,7 @@ npx @taifoon/jev run --no-layer --evidence pack.json    # your own pack, no laye
 | 4 | Jev answers RUBRIC_v1, code composes the verdict | none | same |
 | 5 | record the answers and the decision | `POST /v1/judge/answers/record` (only with `TAIFOON_RELAYER_KEY`) | unsigned calls |
 | 6 | the evaluator call that ends the job | none | same |
-| 7 | price the next premium from the seller record | `POST /v1/pools/quote` | skipped; use `@taifoon/jev-wilson` |
+| 7 | price the next premium from the seller record | `POST /v1/pools/quote` | skipped (the quote needs the seller's record) |
 | 8 | re-derive the receipt (and find it on chain) | none | same |
 
 Steps 1 to 4 are required: saying no at one stops the run. Keys come from the environment only, `TYPESAFE_KEY` (your own
