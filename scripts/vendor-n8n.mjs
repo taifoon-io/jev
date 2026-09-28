@@ -4,7 +4,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-export const VENDORED = ['hash.ts', 'abi.ts', 'rubric.ts', 'records.ts', 'contracts.ts', 'receipt.ts', 'record.ts', 'evaluator/types.ts', 'evaluator/assurance-hook.ts', 'evaluator/judge-adapter.ts', 'evaluator/virtuals-erc8183.ts', 'evaluator/virtuals-memo-acp.ts', 'evaluator/bitagent-erc8183.ts', 'evaluator/index.ts'];
+export const VENDORED = ['hash.ts', 'abi.ts', 'rubric.ts', 'records.ts', 'addresses.ts', 'contracts.ts', 'receipt.ts', 'record.ts', 'evaluator/types.ts', 'evaluator/assurance-hook.ts', 'evaluator/judge-adapter.ts', 'evaluator/virtuals-erc8183.ts', 'evaluator/virtuals-memo-acp.ts', 'evaluator/bitagent-erc8183.ts', 'evaluator/index.ts'];
 export const HEADER = '// GENERATED from @taifoon/jev (src/) by its scripts/vendor-n8n.mjs. Do not edit here: edit the SDK and re-run.\n';
 const here = dirname(fileURLToPath(import.meta.url));
 export const SRC = join(here, '..', 'src');
