@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { pipeline, factsFromEvidence, protocolFor, parseJob, STEPS, verify } from '../src/index.js';
+import { pipeline, factsFromEvidence, protocolFor, parseJob, STEPS, verify, localQuote } from '../src/index.js';
 import { readable, type Evidence, type QueueRow } from '../src/pipeline.js';
 
 // real layer responses, 2026-09-27: the queue (three devnet rows mislabelled 8453 + one BitAgent row), the BitAgent
@@ -147,5 +147,19 @@ describe('the pieces', () => {
     expect(protocolFor('memo-9')).toBeNull();
     expect(parseJob('8453:bitagent:8453:7287')).toEqual({ chainId: 8453, jobId: 'bitagent:8453:7287' });
     expect(parseJob('81100')).toEqual({ chainId: 8453, jobId: '81100' });
+  });
+});
+
+describe('premium from a seller record, priced here with @taifoon/jev-wilson', () => {
+  it('same ratio as the layer quote for the same record, and no request', async () => {
+    const f = vi.fn() as unknown as typeof fetch;
+    const t = await pipeline({ layer: false, fetch: f, sellerRecord: { k: 6, n: 6 }, priceUsdc: 1.5, evidence: { subject: 'my-protocol:job-7', state: 'task: summarise X\ndelivered: a summary of X', checks: { schema_ok: true } }, answers: CLEAN.map(({ id, value, confidence, probabilities }) => ({ id, value, confidence, probabilities })) });
+    expect(f).not.toHaveBeenCalled();
+    expect(t.quote!.premium_ratio).toBe(0.39033428790216534);   // the layer's own quote for 0 incorrect of 6 (test above)
+    expect(t.quote!.premium).toBe('585501');                     // 1.5 USDC × 0.390334, the layer's rounding
+    expect(t.quote!.guaranteed).toBe(false);                     // above the 0.30 the pool covers
+  });
+  it('a record with nothing delivered is not insurable', () => {
+    expect(localQuote({ k: 0, n: 3 }, 10).premium_label).toMatch(/UNKNOWN/);
   });
 });

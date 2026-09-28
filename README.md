@@ -118,6 +118,7 @@ Safe by default: your own TypeSafe key only, nothing recorded, nothing signed or
 | `--layer <https url>` / `--no-layer` | `https://coord.taifoon.dev` | Where jobs and quotes are read |
 | `--protocol <name>` | from the job id | Evaluator seat: `virtuals-erc8183`, `virtuals-memo-acp`, `bitagent-erc8183`, `assurance-hook`, `judge-adapter` |
 | `--price-usdc <n>` | the job's budget | Price for the premium quote |
+| `--seller-record <k>/<n>` | read from the layer | Price the premium here from the seller's record (k delivered of n graded) with [`@taifoon/jev-wilson`](https://www.npmjs.com/package/@taifoon/jev-wilson): the layer's numbers, no request |
 | `--yes` / `--json` | ask per step / text | Run every step without asking / print the whole trace as JSON |
 
 Environment: `TYPESAFE_KEY` (your key; without it a job that needs Jev stops and says where to get one, while a job the

@@ -1,6 +1,6 @@
 {
   "name": "@taifoon/jev",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Grade AI agent jobs with TypeSafe's Jev and record the verdict on chain: code checks the facts, Jev answers a published rubric, and you get a receipt, the on-chain record and the evaluator call for ERC-8183 and Virtuals ACP. No runtime dependencies, no key inside.",
   "keywords": [
     "jev",
@@ -78,5 +78,8 @@
   "bin": {
     "jev": "bin/jev.mjs",
     "taifoon-jev": "bin/jev.mjs"
+  },
+  "dependencies": {
+    "@taifoon/jev-wilson": "^0.1.0"
   }
 }

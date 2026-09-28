@@ -1,10 +1,11 @@
 // pipeline(): one job through the coordination layer's steps, each step a function with a typed output.
 //   pick → evidence → facts → grade → record → evaluator → premium → verify
 // Every step works without the layer too: pass `evidence` (your own pack) and the layer is never read; `grade` then
-// runs on your own TypeSafe key (or answers you already have), `record` returns unsigned calls, `premium` is skipped. With the layer
+// runs on your own TypeSafe key (or answers you already have), `record` returns unsigned calls, `premium` is priced from a `sellerRecord` you pass (or skipped). With the layer
 // (https://coord.taifoon.dev by default) the job comes from /v1/judge/queue, the pack from /v1/judge/evidence, the
 // seller's terms from /v1/pools/quote, and — only with a relayer key — the answers are recorded on the layer through
 // /v1/judge/answers/record. Nothing here signs a transaction.
+import { premium as wilsonPremium, wilson } from '@taifoon/jev-wilson';
 import { facts as runFacts, type FactsInput } from './facts.js';
 import { grade, type GradeInput } from './grade.js';
 import { record, type Network, type Recorded } from './record.js';
@@ -78,12 +79,29 @@ export type PipelineOpts = {
   chainVerify?: boolean;
   /** price for the premium step, in USDC; default: the job's budget */
   priceUsdc?: number | null;
+  /** the seller's record, k delivered of n graded: the premium is priced locally (@taifoon/jev-wilson, the layer's own
+   *  numbers to the last digit) and the layer is not asked */
+  sellerRecord?: { k: number; n: number } | null;
   /** a gate before each step: return false to skip it. The interactive CLI asks here. */
   before?: (step: (typeof STEPS)[number], trace: Trace) => boolean | Promise<boolean>;
   /** called after each step with its result */
   after?: (result: StepResult, trace: Trace) => void | Promise<void>;
   fetch?: typeof fetch;
 };
+
+/** The premium the layer would quote for this record, computed here: same z, same bound, same rounding. */
+export function localQuote(record: { k: number; n: number }, priceUsdc: number | null): Quote {
+  const units = priceUsdc ? Math.round(priceUsdc * 1e6) : undefined;
+  const p = wilsonPremium(record, units === undefined ? {} : { price: units });
+  const [lo, hi] = wilson(record.n - record.k, record.n);
+  const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+  return {
+    guaranteed: p.covered, premium: p.amount === null ? null : p.amount.toString(), premium_ratio: p.ratio, deposit: null,
+    premium_label: p.insurable ? `${pct(lo)}–${pct(hi)} · ${record.k} of ${record.n} delivered` : 'UNKNOWN: no delivered job on record',
+    record: { n: record.n, settled: record.n, incorrect: record.n - record.k, wilson: [lo, hi], calibrated: false, insurable: p.insurable },
+    why: p.insurable ? (p.covered ? [] : [`ratio ${p.ratio.toFixed(4)} is above the 0.30 the pool covers`]) : ['a record with no delivered job is not insurable'],
+  };
+}
 
 const num = (s: string | undefined) => { const m = /([0-9]+(?:\.[0-9]+)?)/.exec(s ?? ''); return m ? Number(m[1]) : null; };
 const fact = (ev: Evidence, label: RegExp) => ev.facts.find(([k]) => label.test(k))?.[1];
@@ -211,7 +229,12 @@ export async function pipeline(o: PipelineOpts = {}): Promise<Trace> {
 
   await step('premium', async () => {
     const seller = t.job!.seller;
-    if (!layer) return { skip: 'offline: the premium quote reads the seller\'s record from the layer' };
+    if (o.sellerRecord) {
+      const price = o.priceUsdc ?? budget;
+      t.quote = localQuote(o.sellerRecord, price);
+      return { source: 'local: Wilson on the record you passed', guaranteed: t.quote.guaranteed, premium_ratio: t.quote.premium_ratio, premium_label: t.quote.premium_label, record: t.quote.record ?? null };
+    }
+    if (!layer) return { skip: 'offline: pass sellerRecord (--seller-record k/n) to price locally, or a layer to read the seller\'s record' };
     if (!seller) return { skip: 'no seller address in the evidence' };
     const price = o.priceUsdc ?? budget;
     if (!price) return { skip: 'no price for the job' };

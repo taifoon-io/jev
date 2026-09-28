@@ -35,7 +35,7 @@ function factOf(r) {
   }
 }
 
-const USAGE = 'jev run [--demo | --job <chain>:<id> | --job-file job.json | --evidence pack.json] [--answers answers.json] [--record none|devnet|base|both] [--layer <https url> | --no-layer] [--protocol <name>] [--price-usdc <n>] [--yes] [--json]';
+const USAGE = 'jev run [--demo | --job <chain>:<id> | --job-file job.json | --evidence pack.json] [--answers answers.json] [--record none|devnet|base|both] [--layer <https url> | --no-layer] [--protocol <name>] [--price-usdc <n>] [--seller-record <k>/<n>] [--yes] [--json]';
 const PROTOCOLS = ['assurance-hook', 'judge-adapter', 'virtuals-erc8183', 'virtuals-memo-acp', 'bitagent-erc8183'];
 /** A stranger's typo must never run something else: every flag is known, every value checked, exit 2 with the fix. */
 function refuse(msg) { process.stderr.write(`jev run: ${msg}\n  ${USAGE}\n`); process.exit(2); }
@@ -56,7 +56,7 @@ export async function run(argv) {
   const ansFile = file('--answers');
   const rec = demo ? JSON.parse(readFileSync(new URL('../examples/jobs/base-bitagent-7287.recorded.json', import.meta.url), 'utf8')) : null;
   const network = val('--record') ?? val('--network') ?? 'none'; const layer = noLayer ? false : val('--layer');
-  const protocol = val('--protocol'); const price = val('--price-usdc');
+  const protocol = val('--protocol'); const price = val('--price-usdc'); const sellerRec = val('--seller-record');
   if (a.length) refuse(`unknown flag ${a[0]}`);
   if (!['none', 'devnet', 'base', 'both'].includes(network)) refuse(`--record is none, devnet, base or both (got ${network})`);
   if (demo && (job || evFile || jobFile || ansFile)) refuse('--demo replays one recorded job: drop --job, --job-file, --evidence and --answers');
@@ -65,6 +65,8 @@ export async function run(argv) {
   if (layer && !/^https:\/\//.test(layer)) refuse('--layer must be an https:// URL');
   if (protocol && !PROTOCOLS.includes(protocol)) refuse(`--protocol is one of ${PROTOCOLS.join(', ')}`);
   if (price !== undefined && !(Number(price) > 0)) refuse(`--price-usdc must be a positive number (got ${price})`);
+  const recM = sellerRec === undefined ? null : /^(\d+)\/(\d+)$/.exec(sellerRec);
+  if (sellerRec !== undefined && (!recM || Number(recM[1]) > Number(recM[2]) || Number(recM[2]) === 0)) refuse(`--seller-record must be <delivered>/<graded>, e.g. 60/62 (got ${sellerRec})`);
   const { pipeline, STEPS, prepareJob } = await import('../dist/index.js');
 
   const t = createTerm({ quiet: json });
@@ -72,7 +74,7 @@ export async function run(argv) {
   t.info(`jev run · ${noLayer ? 'offline' : `layer ${layer ?? 'https://coord.taifoon.dev'}`} · grade on ${demo ? `Jev's recorded answers for ${rec.job.ref} (${rec.job.task})` : ansFile ? 'supplied answers' : process.env.TYPESAFE_KEY ? 'your TypeSafe key' : 'no key: set TYPESAFE_KEY, or try --demo'} · record → ${network === 'none' ? 'none (opt in with --record devnet|base|both)' : network}${process.env.TAIFOON_RELAYER_KEY ? ' + the layer' : ''}`);
 
   const trace = await pipeline({
-    layer, job, network, protocol, priceUsdc: price ? Number(price) : undefined,
+    layer, job, network, protocol, priceUsdc: price ? Number(price) : undefined, sellerRecord: recM ? { k: Number(recM[1]), n: Number(recM[2]) } : undefined,
     evidence: rec ? { subject: rec.subject.ref, from: `the recorded job ${rec.job.ref} (${rec.job.protocol}, ${rec.job.price})`, chainId: rec.subject.chainId, label: rec.subject.label, state: rec.evidence, delivered: rec.facts.delivered, checks: rec.facts.checks } : jobFile ? prepareJob(JSON.parse(readFileSync(jobFile, 'utf8'))).pack : evFile ? JSON.parse(readFileSync(evFile, 'utf8')) : undefined,
     answers: rec ? rec.answers : ansFile ? JSON.parse(readFileSync(ansFile, 'utf8')) : undefined, ...(rec ? { model: rec.model } : {}),
     key: process.env.TYPESAFE_KEY || null, relayerKey: process.env.TAIFOON_RELAYER_KEY || null,

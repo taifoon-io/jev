@@ -19,7 +19,7 @@ export { prepareJob, runCheck } from './job.js';
 export { record } from './record.js';
 export { evaluatorCall } from './evaluator/index.js';
 export { verify } from './verify.js';
-export { pipeline, STEPS, LAYER, factsFromEvidence, protocolFor, parseJob } from './pipeline.js';
+export { pipeline, STEPS, LAYER, factsFromEvidence, protocolFor, parseJob, localQuote } from './pipeline.js';
 export { RUBRIC_v1 } from './rubric.js';
 export { CONTRACTS } from './contracts.js';
 

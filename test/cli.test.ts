@@ -33,10 +33,18 @@ describe('jev (no network)', () => {
     [['--layer', 'http://evil.example'], /https:\/\//],
     [['--protocol', 'uniswap'], /--protocol is one of/],
     [['--price-usdc', '-3'], /positive number/],
+    [['--seller-record', '7/5'], /--seller-record must be <delivered>\/<graded>/],
+    [['--seller-record', '60-62'], /e\.g\. 60\/62/],
   ])('refuses %j with exit 2 and the fix', (args, re) => {
     const r = run('run', ...(args as string[]));
     expect(r.code).toBe(2);
     expect(r.out).toMatch(re);
+  });
+  it('--seller-record prices the premium here, offline, with the layer\'s numbers', () => {
+    const r = run('run', '--demo', '--json', '--seller-record', '6/6', '--price-usdc', '1.5');
+    const t = JSON.parse(r.out);
+    expect(t.quote.premium_ratio).toBe(0.39033428790216534);
+    expect(t.quote.premium).toBe('585501');
   });
   it('--demo with another source is refused', () => { expect(run('run', '--demo', '--job', '8453:1').code).toBe(2); });
   it('a job whose code checks fail is rejected without a key (Jev is never asked)', () => {
