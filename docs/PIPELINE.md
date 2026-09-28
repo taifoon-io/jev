@@ -25,7 +25,7 @@ How to describe the result: *graded against a published rubric by a pinned decis
              code checks                     │
                                              no
                                              ▼
-             Jev reads: evidence (cut at 3,600 chars) + the facts section + one instruction
+             Jev reads: evidence (fitted: ≤ 4,000 chars as JSON in all) + the facts section + one instruction
              Jev answers RUBRIC_v1:  spec_met · unsupported_claim · ending · cheat_shaped
                                              ▼
              compose under THRESHOLDS_v1 ─► complete | reject | needs_review

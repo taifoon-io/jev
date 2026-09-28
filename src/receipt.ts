@@ -2,7 +2,7 @@
 // it with the answers its own TypeSafe call returned.
 import { sha256Hex, type Hex } from './hash.js';
 import { answerRecordOf, answersDigestOf, confidenceBpsOf, decisionAnswersOf, decisionDigest, kindIdOf, subjectIdOf, subjectOf, type AnswerRecord, type Subject } from './records.js';
-import { defineRubric, jevStateOf, receiptBody, receiptHashOf, RUBRIC_v1, STATE_CAP, type Answer, type Facts, type ReceiptBody, type Rubric, type RubricInput } from './rubric.js';
+import { defineRubric, jevStateOf, receiptBody, receiptHashOf, RUBRIC_v1, JEV_INPUT_MAX, type Answer, type Facts, type ReceiptBody, type Rubric, type RubricInput } from './rubric.js';
 
 export type Connection = 'trial' | 'key' | 'supplied' | 'none';
 export type Receipt = ReceiptBody & {
@@ -10,7 +10,7 @@ export type Receipt = ReceiptBody & {
   receiptHash: Hex;
   /** the on-chain subject: JevDecisionLog.subjectOf(chainId, at, ref) */
   chainSubject: Subject; subjectId: Hex;
-  /** the exact text Jev read (evidence cut at the cap + the facts section + the instruction) and its sha256 */
+  /** the exact text Jev read (the evidence fitted to JEV_INPUT_MAX + the facts section + the instruction) and its sha256 */
   input: string; inputDigest: Hex;
   decision: { v: 'decision.v2'; kind: 'grade'; kindId: Hex; digest: Hex; confidenceBps: number } | null;
   answersRecord: AnswerRecord | null; answersDigest: Hex | null;
@@ -19,11 +19,10 @@ export type Receipt = ReceiptBody & {
 export const DEFAULT_FACTS: Facts = Object.freeze({ delivered: true, checksOk: null, checks: {}, priceUsdc: null }) as Facts;
 export const rubricOf = (r?: Rubric | RubricInput): Rubric => (r ? defineRubric(r) : RUBRIC_v1);
 export const packOf = (evidence: string | object): string => (typeof evidence === 'string' ? evidence : JSON.stringify(evidence));
-/** the text Jev reads, cut until its JSON form fits `maxJson` characters (the trial's limit) — the facts section is never cut */
-export function inputFor(pack: string, facts: Facts, maxJson?: number): { state: string; jevState: string } {
-  let cap = STATE_CAP; let s = jevStateOf(pack, facts, cap);
-  while (maxJson && JSON.stringify(s.jevState).length > maxJson && cap > 200) { cap -= 200; s = jevStateOf(pack, facts, cap); }
-  return s;
+/** the text Jev reads under _JEV_INPUT_RULE_v1_: its JSON form fits `maxJson` (default JEV_INPUT_MAX, the grade lane's limit) —
+ *  only the pack's body is cut, stated as a "not known" line; the facts section and the instruction never */
+export function inputFor(pack: string, facts: Facts, maxJson: number = JEV_INPUT_MAX): { state: string; jevState: string } {
+  return jevStateOf(pack, facts, maxJson);
 }
 
 export function buildReceipt(a: {

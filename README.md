@@ -94,6 +94,15 @@ The same grader runs in n8n through [`@taifoon/n8n-nodes-typesafe`](https://www.
 with twelve ready-to-import judge workflows: grade an agent's delivery, grade a Base job from its record, fact-check a
 chatbot answer, settle a refund dispute and more. See [its README](https://github.com/taifoon-io/n8n-nodes-typesafe#judge-workflows-ready-to-import).
 
+### With a Taifoon key: record the grade on Base
+
+[`examples/n8n/judge-base-job-record.workflow.json`](examples/n8n/judge-base-job-record.workflow.json) grades a Base
+job and has the coordination layer write the grade to JevDecisionLog and JevAnswerLog on Base. It needs your TypeSafe
+key **and a Taifoon relayer key**, issued by Taifoon (an n8n HTTP Header Auth credential, header `X-API-Key`;
+`GET https://coord.taifoon.dev/v1/relayer/whoami` tests it). The output carries the verdict, the decision id and both
+Base transactions with basescan links. Base recording is metered by a daily budget; over it the grade still stands and
+the output says how to retry. Set `record` to `none` to grade without writing on chain.
+
 ## `jev run` flags
 
 Safe by default: your own TypeSafe key only, nothing recorded, nothing signed or sent. A typo is refused, never guessed.
