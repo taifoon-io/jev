@@ -3,7 +3,7 @@
 //   jev workflows list [--version X]          the bundled n8n workflows (and which nodes and credentials each needs)
 //   jev workflows export <dir> [--version X]  write them, their schemas, manifest and README into <dir>
 //   jev run [--job 8453:81100] [--evidence pack.json] [--network …] [--yes] [--json]   one job through the pipeline, step by step
-//   jev verify <answers-digest> [--network devnet|base|any]  find the digest's JevAnswered / Decided rows (default any: devnet, then Base 8453)
+//   jev verify <answers-digest | decision id> [--network devnet|base|any]  (a decision id: recompute its record offline, then) find the digest's JevAnswered / Decided rows (default any: devnet, then Base 8453)
 import { cpSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,12 +34,25 @@ if (cmd === 'workflows') {
 } else if (cmd === 'run') {
   await import('./run.mjs').then((m) => m.run(process.argv.slice(3)));
 } else if (cmd === 'verify' && sub) {
-  const { verify } = await import('../dist/index.js');
+  const { verify, verifyDecision, LAYER } = await import('../dist/index.js');
   if (!['devnet', 'base', 'any'].includes(network)) die('--network is devnet, base or any');
-  let v = await verify(sub, { network: network === 'base' ? 'base' : 'devnet' });
+  let digest = sub; let offline = null;
+  // a decision id (or its /v1/judge/decisions URL): read the served record and its answers, recompute both here, then
+  // find the answers digest on chain like any other
+  const m = /(decision-\d+-[0-9a-f]{10})/.exec(sub);
+  if (m) {
+    const get = async (p) => { const r = await fetch(`${LAYER}${p}`, { signal: AbortSignal.timeout(30_000) }); if (!r.ok) die(`${LAYER}${p} answered ${r.status}`); return r.json(); };
+    const rec = await get(`/v1/judge/decisions/${m[1]}`);
+    const ad = rec?.decision?.answers_digest;
+    const ans = ad ? await get(`/v1/judge/answers/${ad}`) : null;
+    offline = verifyDecision(rec, ans?.record ? { answers: ans.record } : {});
+    if (!ad) { console.log(JSON.stringify({ offline }, null, 1)); process.exit(offline.ok ? 0 : 2); }
+    digest = ad;
+  }
+  let v = await verify(digest, { network: network === 'base' ? 'base' : 'devnet' });
   if (network === 'any' && !v.checks.answersOnChain) { const b = await verify(sub, { network: 'base' }); if (b.checks.answersOnChain || !v.ok) v = b; }
-  console.log(JSON.stringify(v, null, 1));
-  process.exit(v.ok ? 0 : 2);
+  console.log(JSON.stringify(offline ? { offline, ...v, ok: v.ok && offline.ok } : v, null, 1));
+  process.exit(v.ok && (!offline || offline.ok) ? 0 : 2);
 } else {
-  console.log(`jev ${PKG.version}\n  jev workflows list [--version X]\n  jev workflows export <dir> [--version X]\n  jev run [--job <chain>:<id>] [--evidence pack.json] [--network none|devnet|base|both] [--yes] [--json]\n  jev verify <answers-digest> [--network devnet|base|any]`);
+  console.log(`jev ${PKG.version}\n  jev workflows list [--version X]\n  jev workflows export <dir> [--version X]\n  jev run [--job <chain>:<id>] [--evidence pack.json] [--network none|devnet|base|both] [--yes] [--json]\n  jev verify <answers-digest | decision id> [--network devnet|base|any]`);
 }

@@ -7,6 +7,7 @@
  *   record()         the unsigned calls that put the receipt's digests on JevAnswerLog / JevDecisionLog
  *   evaluatorCall()  the unsigned call that ends the job on the protocol whose evaluator seat you hold
  *   verify()         recompute every digest and find the chain events that hold them
+ *   verifyDecision() recompute a decision record as /v1/judge/decisions/{id} serves it, offline
  *   pipeline()       one job through the coordination layer's steps: pick → evidence → facts → grade → record → evaluator → premium → verify
  *   RUBRIC_v1        the questions, thresholds and composition (pass your own rubric to grade)
  *   CONTRACTS        where the logs and the evaluator seats are
@@ -19,6 +20,7 @@ export { prepareJob, runCheck } from './job.js';
 export { record } from './record.js';
 export { evaluatorCall } from './evaluator/index.js';
 export { verify } from './verify.js';
+export { verifyDecision } from './decision.js';
 export { pipeline, STEPS, LAYER, factsFromEvidence, protocolFor, parseJob, localQuote } from './pipeline.js';
 export { RUBRIC_v1 } from './rubric.js';
 export { CONTRACTS } from './contracts.js';
@@ -28,6 +30,7 @@ export type { FactsInput, Check } from './facts.js';
 export type { JobSpec, JobCheck, PreparedJob } from './job.js';
 export type { Recorded, UnsignedCall, Network } from './record.js';
 export type { Verification, AnswerEvent, DecisionEvent } from './verify.js';
+export type { DecisionRecord, DecisionCheck } from './decision.js';
 export type { Protocol, Adapter, AdapterOpts, EvaluatorCall } from './evaluator/index.js';
 export type { JevError } from './ask.js'; // thrown with .status and .next
 export type { Rubric, RubricInput, Question, Answer, Facts, Verdict, Composed, Thresholds } from './rubric.js';

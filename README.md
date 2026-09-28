@@ -137,7 +137,7 @@ code checks reject is still graded). Exit codes: `0` done, `1` a step failed, `2
 - **What the result is.** *Graded against a published rubric by a pinned decision model, with an appeal.* It is not
   "independently verified". An on-chain record is an attestation by whoever sent it, not a proof the answer is right.
 
-## The five calls
+## The six calls
 
 | Call | What it does |
 |---|---|
@@ -148,13 +148,18 @@ code checks reject is still graded). Exit codes: `0` done, `1` a step failed, `2
 | `evaluatorCall(protocol, jobId, verdict, digest)` | Returns the one unsigned call that ends the job; `null` for needs_review |
 | `verify(receiptOrDigest)` | Recomputes every digest and finds the records on chain |
 
+`verifyDecision(record, { answers? })` does the same for a decision as the coordination layer serves it at
+`/v1/judge/decisions/{id}`: the input fingerprint, the decision digest, the answers digest and the verdict RUBRIC_v1
+composes, all offline. `npx @taifoon/jev verify decision-1790522234088-10691d5017 --network base` runs it on the
+block-proof grade and then finds both entries on Base.
+
 Evaluator seats: `assurance-hook`, `judge-adapter`, `virtuals-erc8183`, `virtuals-memo-acp` and `bitagent-erc8183`.
 Each is tested against calldata a mined transaction carried.
 
 ## Documentation
 
 - [How grading works: Jev, the pipeline, THRESHOLDS_v1, `npx @taifoon/jev run`](docs/PIPELINE.md)
-- [API: the five calls, where Jev is reached, your own rubric](docs/API.md)
+- [API: the six calls, where Jev is reached, your own rubric](docs/API.md)
 - [Evaluator seats, with the transactions they are tested against](docs/EVALUATORS.md)
 - [On chain: contract addresses on Base and devnet, and one real grade end to end](docs/ON_CHAIN.md)
 - [The records: receipt, decision.v2, jev.answer.v1](docs/RECORDS.md)
@@ -163,6 +168,7 @@ Each is tested against calldata a mined transaction carried.
 
 ```
 npx @taifoon/jev verify <digest> --network base
+npx @taifoon/jev verify <decision id> --network base   # recompute the served record offline, then find it on chain
 npx @taifoon/jev workflows export ./jev-workflows
 ```
 
