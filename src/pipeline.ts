@@ -5,7 +5,7 @@
 // (https://coord.taifoon.dev by default) the job comes from /v1/judge/queue, the pack from /v1/judge/evidence, the
 // seller's terms from /v1/pools/quote, and — only with a relayer key — the answers are recorded on the layer through
 // /v1/judge/answers/record. Nothing here signs a transaction.
-import { premium as wilsonPremium, wilson } from '@taifoon/jev-wilson';
+import { premium as wilsonPremium, wilson } from './wilson.js';
 import { facts as runFacts, type FactsInput } from './facts.js';
 import { grade, type GradeInput } from './grade.js';
 import { record, type Network, type Recorded } from './record.js';
