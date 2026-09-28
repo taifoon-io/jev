@@ -1,20 +1,22 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import * as published from '@taifoon/jev-wilson';
-import * as vendored from '../src/wilson.js';
-import src from '../src/wilson.ts?raw';
+import * as ours from '../src/wilson.js';
 
-// src/wilson.ts is @taifoon/jev-wilson's pricing, vendored by scripts/vendor-wilson.mjs so @taifoon/jev keeps zero
-// runtime dependencies. It must give the published package's numbers, bit for bit.
+// src/wilson.ts re-exports @taifoon/jev-wilson, a runtime dependency of this package: one implementation of the
+// pricing, so the SDK, the layer and the pool contracts price a seller from the same numbers.
 describe('src/wilson.ts is @taifoon/jev-wilson', () => {
-  it('same constants', () => {
-    expect([vendored.Z, vendored.MAX_PREMIUM_RATIO, vendored.RATIO_SCALE]).toEqual([published.Z, published.MAX_PREMIUM_RATIO, published.RATIO_SCALE]);
-  });
-  it('same interval and premium on every record up to n = 120, at two prices', () => {
-    for (let n = 0; n <= 120; n++) for (let k = 0; k <= n; k++) {
-      expect(vendored.wilson(k, n)).toEqual(published.wilson(k, n));
-      if (n === 0) continue;
-      for (const price of [1_500_000n, 10n ** 19n]) expect(vendored.premium({ k, n }, { price })).toEqual(published.premium({ k, n }, { price }));
+  it('re-exports the same functions and constants', () => {
+    for (const k of ['Z', 'MAX_PREMIUM_RATIO', 'RATIO_SCALE', 'wilson', 'wilsonUpperFailure', 'premiumAmount', 'premium'] as const) {
+      expect((ours as Record<string, unknown>)[k]).toBe((published as Record<string, unknown>)[k]);
     }
   });
-  it('imports nothing', () => { expect(src).not.toMatch(/^\s*import\s|require\(/m); });
+  it('declares the package as a runtime dependency, in a range the installed version satisfies', () => {
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    const range: string = pkg.dependencies['@taifoon/jev-wilson'];
+    const installed: string = JSON.parse(readFileSync(new URL('../node_modules/@taifoon/jev-wilson/package.json', import.meta.url), 'utf8')).version;
+    expect(range).toMatch(/^\^\d+\.\d+\.\d+$/);
+    expect(installed.split('.')[0]).toBe(range.slice(1).split('.')[0]);
+    expect(pkg.devDependencies?.['@taifoon/jev-wilson']).toBeUndefined();
+  });
 });

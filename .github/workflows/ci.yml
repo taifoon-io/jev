@@ -15,6 +15,6 @@ jobs:
         with: { node-version: '${{ matrix.node }}' }
       - run: npm ci
       - run: npm run check
-      - name: No runtime dependencies
-        run: node -e "const d=Object.keys(require('./package.json').dependencies||{}); if(d.length){console.error('runtime dependencies:',d); process.exit(1)}"
+      - name: No third-party runtime dependencies (Taifoon's own @taifoon/* packages are allowed)
+        run: node -e "const d=Object.keys(require('./package.json').dependencies||{}).filter((n)=>!n.startsWith('@taifoon/')); if(d.length){console.error('third-party runtime dependencies:',d); process.exit(1)}"
       - run: npm pack --dry-run

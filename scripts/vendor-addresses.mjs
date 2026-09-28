@@ -1,5 +1,5 @@
 // Copy the contract addresses this SDK names out of the address registry's public subset (addresses.json) into
-// src/addresses.ts. @taifoon/jev ships no runtime dependencies, so the registry is vendored, not installed;
+// src/addresses.ts. @taifoon/jev ships no third-party runtime dependencies, so the registry is vendored, not installed;
 // test/addresses-vendor.test.ts fails when the copy differs from the registry (skipped where the registry is absent).
 //   node scripts/vendor-addresses.mjs [registry public/addresses.json]    write src/addresses.ts
 //   node scripts/vendor-addresses.mjs --check                             exit 1 on drift

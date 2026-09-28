@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { found, render, OUT, REGISTRY } from '../scripts/vendor-addresses.mjs';
 import { CONTRACTS } from '../src/contracts.js';
 
-// src/addresses.ts is vendored from the address registry so @taifoon/jev keeps zero runtime dependencies.
+// src/addresses.ts is vendored from the address registry so @taifoon/jev keeps zero third-party runtime dependencies.
 describe.skipIf(!found())('src/addresses.ts is the registry', () => {
   it('equals what the registry renders (run node scripts/vendor-addresses.mjs when it drifts)', () => {
     expect(readFileSync(OUT, 'utf8')).toBe(render(JSON.parse(readFileSync(REGISTRY, 'utf8'))));

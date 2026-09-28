@@ -72,7 +72,7 @@ export function build() {
     const builtins = [...new Set(src.nodes.filter((n) => n.type.startsWith('n8n-nodes-base.')).map((n) => `${n.type.replace('n8n-nodes-base.', '')} v${n.typeVersion}`))];
     const creds = [...new Set(src.nodes.flatMap((n) => Object.keys(n.credentials ?? {})))];
     manifest.workflows.push({ file: wf.out, source_id: src.id, name: src.name, sha256: sha(text), nodes: src.nodes.length, packages, builtins, credentials: creds });
-    readme += `\n## ${wf.title} — \`${wf.out}\`\n\n${wf.what}\n\n- source: \`${src.id}\` on n8n.taifoon.dev · sha256 \`${sha(text)}\`\n- nodes: ${packages.map((p) => `\`${p}\``).join(', ')}; built-ins ${builtins.join(', ')}\n- credentials: ${creds.map((c) => `\`${c}\``).join(', ') || 'none'}\n\n| Step | Takes | Emits | Does |\n|---|---|---|---|\n${Object.entries(steps).map(([name, s]) => `| ${name} | ${ids(s.in)} | ${ids(s.out)} | ${String(s.does ?? '').replace(/\|/g, '\\|')} |`).join('\n')}\n`;
+    readme += `\n## ${wf.title} — \`${wf.out}\`\n\n${wf.what}\n\n- source: \`${src.id}\` on n8n.taifoon.dev · sha256 \`${sha(text)}\`\n- nodes: ${packages.map((p) => `\`${p}\``).join(', ')}; built-ins ${builtins.join(', ')}\n- credentials: ${creds.map((c) => `\`${c}\``).join(', ') || 'none'}\n\n| Step | Takes | Emits | Does |\n|---|---|---|---|\n${Object.entries(steps).map(([name, s]) => `| ${name} | ${ids(s.in)} | ${ids(s.out)} | ${String(s.does ?? '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|')} |`).join('\n')}\n`;
   }
   for (const f of [...usedSchemas].sort()) {
     const p = join(DEV_ROOT, 'schemas', 'json', f);

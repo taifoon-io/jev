@@ -1,4 +1,4 @@
-// sha256 and keccak256 in plain TypeScript, so the package has no runtime dependency and runs the same in Node, a
+// sha256 and keccak256 in plain TypeScript, so the package has no third-party runtime dependency and runs the same in Node, a
 // browser, a worker or an n8n node. Both are checked against viem and node:crypto in test/hash.test.ts.
 export type Hex = `0x${string}`;
 

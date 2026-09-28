@@ -176,4 +176,4 @@ npx @taifoon/jev workflows export ./jev-workflows
 
 Independent project. Jev and TypeSafe are products of TypeSafe AI, Inc., which does not endorse this package.
 
-Built by Taifoon. MIT. The package has no runtime dependencies and contains no key. It calls Jev only with your own TypeSafe key.
+Built by Taifoon. MIT. The package's only runtime dependency is Taifoon's own @taifoon/jev-wilson, the pricing; nothing third-party. It contains no key. It calls Jev only with your own TypeSafe key.

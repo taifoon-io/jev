@@ -1,5 +1,5 @@
 // Copy @taifoon/term (from the development tree) into bin/term.mjs, byte for byte.
-// @taifoon/jev ships no runtime dependencies, so the renderer is vendored, not installed.
+// @taifoon/jev ships no third-party runtime dependencies, so the renderer is vendored, not installed.
 // After a copy, update TERM_SHA256 in test/term-vendor.test.ts to the hash this prints.
 import { copyFileSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';

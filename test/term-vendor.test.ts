@@ -10,7 +10,7 @@ describe('bin/term.mjs is @taifoon/term, byte for byte', () => {
   it('matches the pinned sha256 (re-vendor with scripts/vendor-term.mjs and update the pin together)', () => {
     expect(sha256Hex(term)).toBe(TERM_SHA256);
   });
-  it('imports nothing, so @taifoon/jev keeps zero runtime dependencies', () => {
+  it('imports nothing, so @taifoon/jev keeps zero third-party runtime dependencies', () => {
     expect(term).not.toMatch(/^\s*import\s|require\(/m);
   });
 });
