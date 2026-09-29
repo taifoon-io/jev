@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.taifoon.io/schemas/coordination/v1/answers.json",
+  "title": "ANSWERS — what Jev answered (jev.answer.v1)",
+  "description": "Every question and every answer with its whole distribution, the model and who paid, exactly the jev.answer.v1 record: answers_digest = sha256(canonical JSON of the record fields) recomputes from this entity alone.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "taifoon.answers.v1",
+      "x-stage": "L",
+      "description": "which canonical entity this record is; fixed per schema"
+    },
+    "answers_digest": {
+      "$ref": "common.json#/$defs/bytes32",
+      "x-stage": "S5"
+    },
+    "v": {
+      "const": "jev.answer.v1",
+      "x-stage": "S5"
+    },
+    "use_case": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._/-]{0,63}$",
+      "x-stage": "S5"
+    },
+    "subject": {
+      "$ref": "common.json#/$defs/bytes32",
+      "x-stage": "S5"
+    },
+    "input_digest": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/bytes32"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S5"
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "choice",
+              "noul",
+              "score"
+            ]
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "options": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "text",
+          "options"
+        ],
+        "additionalProperties": false
+      },
+      "x-stage": "S5"
+    },
+    "answers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "string",
+              "boolean",
+              "number",
+              "null"
+            ]
+          },
+          "distribution": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "value",
+          "distribution",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "x-stage": "S5"
+    },
+    "model": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-stage": "S5"
+    },
+    "upstream_model": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-stage": "S5"
+    },
+    "latency_ms": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "x-stage": "S5"
+    },
+    "credential_path": {
+      "enum": [
+        "trial",
+        "layer",
+        "caller-credential",
+        "registry"
+      ],
+      "x-stage": "S5"
+    },
+    "caller": {
+      "enum": [
+        "site",
+        "mcp",
+        "n8n",
+        "registry",
+        "moonbeam",
+        "runner"
+      ],
+      "x-stage": "S5"
+    },
+    "at": {
+      "$ref": "common.json#/$defs/unix_ms",
+      "x-stage": "S5"
+    },
+    "decision_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-stage": "S5"
+    },
+    "decision_digest": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/bytes32"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S5"
+    },
+    "anchors": {
+      "type": "array",
+      "items": {
+        "$ref": "common.json#/$defs/anchor"
+      },
+      "x-stage": "S6"
+    },
+    "source": {
+      "$ref": "common.json#/$defs/source",
+      "x-stage": "L"
+    }
+  },
+  "required": [
+    "schema",
+    "answers_digest",
+    "v",
+    "use_case",
+    "subject",
+    "input_digest",
+    "questions",
+    "answers",
+    "model",
+    "upstream_model",
+    "latency_ms",
+    "credential_path",
+    "caller",
+    "at",
+    "decision_id",
+    "decision_digest",
+    "anchors",
+    "source"
+  ],
+  "additionalProperties": false
+}

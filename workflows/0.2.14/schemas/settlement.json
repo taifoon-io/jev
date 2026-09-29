@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+  "title": "SETTLEMENT — how the money moved",
+  "description": "One row per job, whichever path settled it (settle-records.ts): every transaction with its role and link, the on-chain ending in the hook’s words.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "taifoon.settlement.v1",
+      "x-stage": "L",
+      "description": "which canonical entity this record is; fixed per schema"
+    },
+    "job": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/job_ref"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S6"
+    },
+    "chain_id": {
+      "$ref": "common.json#/$defs/chain_id",
+      "x-stage": "S6"
+    },
+    "tenant": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-stage": "S6"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "enum": [
+            "jev",
+            "agent",
+            "resource"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S6"
+    },
+    "buyer": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/address"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S6"
+    },
+    "seller": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/address"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S6"
+    },
+    "price": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/uint_string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S6"
+    },
+    "token": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/address"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S6"
+    },
+    "verdict": {
+      "anyOf": [
+        {
+          "enum": [
+            "complete",
+            "reject",
+            "expire",
+            "cheat"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S6"
+    },
+    "state": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/lifecycle_state"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "L"
+    },
+    "decision_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-stage": "S5"
+    },
+    "jev_decision_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^decision-[0-9]+-[0-9a-f]+$",
+      "x-stage": "S5"
+    },
+    "operator_decision_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^opdec-[0-9a-f]{16}$",
+      "x-stage": "L"
+    },
+    "decided_by": {
+      "anyOf": [
+        {
+          "enum": [
+            "jev",
+            "loop-agent",
+            "operator"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "L"
+    },
+    "txs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "tx": {
+            "$ref": "common.json#/$defs/bytes32"
+          },
+          "link": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "role",
+          "tx",
+          "link"
+        ],
+        "additionalProperties": false
+      },
+      "x-stage": "S6"
+    },
+    "writer": {
+      "enum": [
+        "runner",
+        "relayer",
+        "evaluator-leg",
+        "keeper",
+        "site",
+        "n8n"
+      ],
+      "x-stage": "L"
+    },
+    "at": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/unix_s"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "L"
+    },
+    "anchors": {
+      "type": "array",
+      "items": {
+        "$ref": "common.json#/$defs/anchor"
+      },
+      "x-stage": "S6"
+    },
+    "source": {
+      "$ref": "common.json#/$defs/source",
+      "x-stage": "L"
+    }
+  },
+  "required": [
+    "schema",
+    "job",
+    "chain_id",
+    "tenant",
+    "kind",
+    "buyer",
+    "seller",
+    "price",
+    "token",
+    "verdict",
+    "state",
+    "decision_id",
+    "jev_decision_id",
+    "operator_decision_id",
+    "decided_by",
+    "txs",
+    "writer",
+    "at",
+    "anchors",
+    "source"
+  ],
+  "additionalProperties": false
+}

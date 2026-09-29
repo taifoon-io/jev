@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.taifoon.io/schemas/coordination/v1/job.json",
+  "title": "JOB — one job with everything known about it",
+  "description": "The unit a harvester emits and the judge reads: HIRE always; DELIVERY and FACTS whenever the source shows them; VERDICT, SETTLEMENT and the seller RECORD when known. HARVESTABLE.md is the minimum.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "taifoon.job.v1",
+      "x-stage": "L",
+      "description": "which canonical entity this record is; fixed per schema"
+    },
+    "job_key": {
+      "$ref": "common.json#/$defs/job_key",
+      "x-stage": "L"
+    },
+    "hire": {
+      "$ref": "hire.json",
+      "x-stage": "S1"
+    },
+    "delivery": {
+      "anyOf": [
+        {
+          "$ref": "delivery.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S1"
+    },
+    "facts": {
+      "anyOf": [
+        {
+          "$ref": "facts.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S4"
+    },
+    "verdict": {
+      "anyOf": [
+        {
+          "$ref": "verdict.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S5"
+    },
+    "settlement": {
+      "anyOf": [
+        {
+          "$ref": "settlement.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S6"
+    },
+    "record": {
+      "anyOf": [
+        {
+          "$ref": "record.json"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S2"
+    }
+  },
+  "required": [
+    "schema",
+    "job_key",
+    "hire",
+    "delivery",
+    "facts",
+    "verdict",
+    "settlement",
+    "record"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,314 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.taifoon.io/schemas/coordination/v1/hire.json",
+  "title": "HIRE — what was asked, of whom, on which ledger, for how much",
+  "description": "The job itself: parties, task, money, deadline, and the lifecycle state it is in. One shape for an ERC-8183 job, a memo-ACP job, an extra deployment’s job, an assurance-hook job and a handshake that has no job yet.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "taifoon.hire.v1",
+      "x-stage": "L",
+      "description": "which canonical entity this record is; fixed per schema"
+    },
+    "job": {
+      "$ref": "common.json#/$defs/job_ref",
+      "x-stage": "S1"
+    },
+    "lane": {
+      "$ref": "common.json#/$defs/lane",
+      "x-stage": "S2"
+    },
+    "tenant": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-stage": "S2"
+    },
+    "buyer": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/address"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S1"
+    },
+    "seller": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/address"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S1"
+    },
+    "seller_agent_key": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/agent_key"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S9"
+    },
+    "seller_ids": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "scheme": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scheme",
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "x-stage": "S1"
+    },
+    "evaluator": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/address"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S1"
+    },
+    "hook": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/address"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S1"
+    },
+    "evaluator_kind": {
+      "anyOf": [
+        {
+          "enum": [
+            "buyer",
+            "none",
+            "named",
+            "platform",
+            "hook"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S2"
+    },
+    "task": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-stage": "S2"
+    },
+    "required_skills": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "x-stage": "L"
+    },
+    "budget": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/amount"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S1"
+    },
+    "funding": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "price": {
+          "$ref": "common.json#/$defs/amount"
+        },
+        "premium": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/amount"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deposit": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/amount"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pool": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/address"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cover_cap": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/uint_string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "deadline": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/unix_s"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "challenge_window": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "stored by the hook, read by no contract logic"
+        }
+      },
+      "required": [
+        "price",
+        "premium",
+        "deposit",
+        "pool",
+        "cover_cap",
+        "deadline",
+        "challenge_window"
+      ],
+      "additionalProperties": false,
+      "x-stage": "S1"
+    },
+    "created_at": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/unix_s"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S1"
+    },
+    "deadline": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/unix_s"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S1"
+    },
+    "handshake_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^hs_[0-9a-f]{24}$",
+      "x-stage": "L"
+    },
+    "offer_nonce": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-stage": "S7"
+    },
+    "state": {
+      "$ref": "common.json#/$defs/lifecycle_state",
+      "x-stage": "L"
+    },
+    "ending": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/ending"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S2"
+    },
+    "anchors": {
+      "type": "array",
+      "items": {
+        "$ref": "common.json#/$defs/anchor"
+      },
+      "x-stage": "S1"
+    },
+    "source": {
+      "$ref": "common.json#/$defs/source",
+      "x-stage": "L"
+    }
+  },
+  "required": [
+    "schema",
+    "job",
+    "lane",
+    "tenant",
+    "buyer",
+    "seller",
+    "seller_agent_key",
+    "seller_ids",
+    "evaluator",
+    "hook",
+    "evaluator_kind",
+    "task",
+    "required_skills",
+    "budget",
+    "funding",
+    "created_at",
+    "deadline",
+    "handshake_id",
+    "offer_nonce",
+    "state",
+    "ending",
+    "anchors",
+    "source"
+  ],
+  "additionalProperties": false
+}
