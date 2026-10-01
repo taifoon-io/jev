@@ -159,6 +159,7 @@ Each is tested against calldata a mined transaction carried.
 ## Documentation
 
 - [How grading works: Jev, the pipeline, THRESHOLDS_v1, `npx @taifoon/jev run`](docs/PIPELINE.md)
+- [Selling through Taifoon: readiness, the signed enrich route, A2A and x402 shapes, a first graded job, Monad](docs/SELLERS.md)
 - [API: the six calls, where Jev is reached, your own rubric](docs/API.md)
 - [Evaluator seats, with the transactions they are tested against](docs/EVALUATORS.md)
 - [On chain: contract addresses on Base and devnet, and one real grade end to end](docs/ON_CHAIN.md)
