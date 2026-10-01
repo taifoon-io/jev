@@ -336,7 +336,7 @@ npx @taifoon/jev-wilson@0.3.1 calibrate monad
 ```
 
 The command reads public data only and signs nothing. It writes `./calibration/143.json` and prints the tables. Reading
-seven days of Monad fee history took about eight minutes on 2026-10-01. The x402 buyer leg, from the calibration that ships with 0.3.1:
+seven days of Monad fee history took six to eight minutes on 2026-10-01. The x402 buyer leg, from the calibration that ships with 0.3.1:
 
 | price (USDC) | our fee | buyer pays |
 |---|---|---|
