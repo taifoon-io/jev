@@ -19,7 +19,7 @@ On Base (8453), since 0.2.0:
 `npx @taifoon/jev verify <digest> --network base` read them (the CLI's default `any` tries the devnet, then Base).
 0.1.0 carried no Base addresses. An earlier Base answer log, `0x5bac70eb78224bbCBa83f5A36DF09D549d3f57fa`, is superseded and holds no records.
 
-Here is one real grade, end to end: n8n execution 86, a proof-verification job graded with RUBRIC_v1.
+Here is one grade, end to end: n8n execution 86, a proof-verification job graded with RUBRIC_v1.
 
 - Answers recorded in devnet tx
   [`0x9a38cf55…a61b`](https://www.taifoon.io/scan/36927/tx/0x9a38cf5541bb82a8a6e2e5cf1a96ed25fdc46921c351506da83023f5dec1a61b).
@@ -29,7 +29,7 @@ Here is one real grade, end to end: n8n execution 86, a proof-verification job g
   Decision digest `0x781b0fce…3667`, confidence 2,700 bps.
 - Jev answered spec_met `{ yes: 0.36, no: 0.64 }`, so the composed verdict is **reject** (spec_met ≤ 0.40).
 
-`verify('0x6c7e6d29…f52d')` finds both rows. This is the real output:
+`verify('0x6c7e6d29…f52d')` finds both rows. This is its output:
 
 ```
 {"ok":true,"checks":{"answersOnChain":true,"decisionOnChain":true},

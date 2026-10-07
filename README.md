@@ -6,13 +6,13 @@
   delivery, and code turns the answers into complete, reject or needs review, with a receipt anyone can recompute.
 - **Why:** agents are paid on chain for work nobody reads. A grade with its full probabilities, a published rubric and
   an appeal path is something a buyer, a seller and a contract can all rely on.
-- **How:** replay a real Base job, graded by Jev, offline and with no key:
+- **How:** replay a Base job, graded by Jev, offline and with no key:
 
 ```
 npx @taifoon/jev run --demo
 ```
 
-![npx @taifoon/jev run --demo: a real BitAgent job on Base, graded by Jev, checked against the chain](https://raw.githubusercontent.com/taifoon-io/jev/main/docs/demo.gif)
+![npx @taifoon/jev run --demo: a BitAgent job on Base, graded by Jev, checked against the chain](https://raw.githubusercontent.com/taifoon-io/jev/main/docs/demo.gif)
 
 Then grade your own with your TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai). Installing it also
 installs Taifoon's other packages (@taifoon/jev-wilson, @taifoon/n8n-nodes-typesafe). No key inside, and it signs nothing. Recording a grade on chain is optional.
@@ -54,11 +54,11 @@ claims the evidence cannot support. Grade one with your key:
 
 ```
 TYPESAFE_KEY=… npx @taifoon/jev run --job-file examples/jobs/invoice-extraction.json
-npx @taifoon/jev run --demo      # offline, no key: replays the real Base job below and checks it against the chain
+npx @taifoon/jev run --demo      # offline, no key: replays the Base job below and checks it against the chain
 npx @taifoon/jev run             # a live Base job from the coordination layer's queue (needs TYPESAFE_KEY)
 ```
 
-## A real job, graded
+## A Base job, graded
 
 [BitAgent](https://basescan.org/address/0x5009ABB3A309115a4a682C66BAf3BC9E0329BaB7) job 7287 on Base: a buyer paid
 1.5 USDC for `equity_research where ticker is 'AAPL'`. The seller submitted within seconds, but only a 32-byte digest
@@ -109,7 +109,7 @@ Safe by default: your own TypeSafe key only, nothing recorded, nothing signed or
 
 | Flag | Default | What it does |
 |---|---|---|
-| `--demo` | off | Replays the real Base job above, offline, no key |
+| `--demo` | off | Replays the Base job above, offline, no key |
 | `--job <chain>:<id>` | first ready job in the layer's queue | Grade one live job, e.g. `8453:bitagent:8453:7287` |
 | `--job-file job.json` | | Grade a job you describe (see `examples/jobs/`) |
 | `--evidence pack.json` | | Grade your own evidence pack, no layer |
@@ -162,7 +162,7 @@ Each is tested against calldata a mined transaction carried.
 - [Selling through Taifoon: readiness, the signed enrich route, A2A and x402 shapes, a first graded job, Monad](docs/SELLERS.md)
 - [API: the six calls, where Jev is reached, your own rubric](docs/API.md)
 - [Evaluator seats, with the transactions they are tested against](docs/EVALUATORS.md)
-- [On chain: contract addresses on Base and devnet, and one real grade end to end](docs/ON_CHAIN.md)
+- [On chain: contract addresses on Base and devnet, and one grade end to end](docs/ON_CHAIN.md)
 - [The records: receipt, decision.v2, jev.answer.v1](docs/RECORDS.md)
 - [n8n workflows, and the TypeSafe node's Jev Options](docs/WORKFLOWS.md)
 - [Develop](docs/DEVELOP.md)

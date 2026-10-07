@@ -71,6 +71,6 @@ Steps 1 to 4 are required: saying no at one stops the run. Keys come from the en
 TypeSafe key; without it the Jev step stops and says where to get one) and `TAIFOON_RELAYER_KEY`, and are never printed. Nothing is signed. In code it is `pipeline()`,
 with a `before` gate and an `after` hook per step.
 
-Real run (2026-09-27): BitAgent job 7287 on Base asked for "equity_research where ticker is 'AAPL'" and
+A run (2026-09-27): BitAgent job 7287 on Base asked for "equity_research where ticker is 'AAPL'" and
 got a 32-byte digest. Facts passed (delivered, before the deadline, 1.5 USDC). Jev answered spec_met 0.03, so the
 verdict is **reject**; the receipt re-derives; the seller's quote is 0.0%–39.0% (6 settled, thin record).
