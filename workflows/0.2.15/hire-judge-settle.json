@@ -1,0 +1,920 @@
+{
+  "name": "Taifoon — HIRE → JUDGE → SETTLE (devnet 36927)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "n0",
+      "name": "Start",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ],
+      "notes": "in: — → out: — · start a run (swap for a Webhook or Schedule trigger)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "i1",
+              "name": "task",
+              "value": "Verify Base block 51828000 under the SuperRoot and return the portable V5 proof (class proof.verify.v5).",
+              "type": "string"
+            },
+            {
+              "id": "i2",
+              "name": "candidate",
+              "value": "0x3574999dd4c96eb73bd6e11d4177010c83e14f5b",
+              "type": "string"
+            },
+            {
+              "id": "i3",
+              "name": "endpoint",
+              "value": "https://www.taifoon.io/api/mcp",
+              "type": "string"
+            },
+            {
+              "id": "i4",
+              "name": "tool",
+              "value": "taifoon_proof",
+              "type": "string"
+            },
+            {
+              "id": "i5",
+              "name": "block_number",
+              "value": 51828000,
+              "type": "number"
+            },
+            {
+              "id": "i6",
+              "name": "buyer",
+              "value": "0xf6806EFcb34dDa2eE78967384D09367ECd364483",
+              "type": "string"
+            },
+            {
+              "id": "i7",
+              "name": "seller",
+              "value": "0xe6209aD65a66d5eF11E00A7B33Cd21ce7084715c",
+              "type": "string"
+            },
+            {
+              "id": "i8",
+              "name": "price",
+              "value": "1000000",
+              "type": "string"
+            },
+            {
+              "id": "i9",
+              "name": "chainId",
+              "value": 36927,
+              "type": "number"
+            },
+            {
+              "id": "i10",
+              "name": "lane",
+              "value": "a",
+              "type": "string"
+            },
+            {
+              "id": "i11",
+              "name": "tenant",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "i12",
+              "name": "deadline_sec",
+              "value": 120,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "n1",
+      "name": "Inputs",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ],
+      "notes": "in: — → out: hire.json · the hire intent: task, candidate seller, endpoint/tool, buyer, price, chain (a HIRE in state Open)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "resource": "handshake",
+        "operation": "open",
+        "candidateAddress": "={{ $json.candidate }}",
+        "candidateKind": "mcp",
+        "task": "={{ $json.task }}",
+        "openOptions": {
+          "args": "={{ JSON.stringify({ chain_id: 8453, block_number: $json.block_number }) }}",
+          "chain": "={{ String($json.chainId) }}",
+          "dispatch": true,
+          "endpoint": "={{ $json.endpoint }}",
+          "hirer": "={{ $json.buyer }}",
+          "required_skills": "proof.verify.v5",
+          "tool": "={{ $json.tool }}"
+        }
+      },
+      "id": "n2",
+      "name": "Offer + deliver",
+      "type": "CUSTOM.taifoon",
+      "typeVersion": 1,
+      "position": [
+        440,
+        300
+      ],
+      "notes": "in: hire.json → out: job.json · POST /v1/handshake {dispatch:true}: the offer goes to the seller’s own endpoint; the reply is held with its keccak digest",
+      "notesInFlow": true,
+      "credentials": {
+        "taifoonRelayerApi": {
+          "id": "",
+          "name": "REPLACE: taifoonRelayerApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Delivery: what came back over the wire. No digest = nothing to settle; say why and stop.\nconst r = $input.first().json;\nconst d = r.delivery || {};\nconst digest = d.reply_digest || d.digest || null;\nif (!r.handshake_id) throw new Error('no handshake id in ' + JSON.stringify(r).slice(0, 300));\nif (!digest) throw new Error('no delivery digest: dispatch status ' + (d.status || 'none') + (d.reason ? ' — ' + d.reason : ''));\nreturn [{ json: { handshake_id: r.handshake_id, delivery_status: d.status || null, protocol: d.protocol || null, latency_ms: d.latency_ms ?? null, reply_head: d.reply_head || null, evidence: digest, target: r.target || null } }];"
+      },
+      "id": "n3",
+      "name": "Delivery",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ],
+      "notes": "in: job.json → out: delivery.json · stop unless a reply digest is held (no digest = nothing to settle)",
+      "notesInFlow": true
+    },
+    {
+      "name": "Judge · prepare",
+      "type": "CUSTOM.taifoon",
+      "typeVersion": 1,
+      "position": [
+        880,
+        300
+      ],
+      "parameters": {
+        "resource": "judge",
+        "operation": "compose",
+        "composeSubject": "handshake",
+        "composeHandshakeId": "={{ $json.handshake_id }}",
+        "composePriceUsdc": 1,
+        "composeMode": "prepare"
+      },
+      "credentials": {
+        "taifoonRelayerApi": {
+          "id": "",
+          "name": "REPLACE: taifoonRelayerApi"
+        }
+      },
+      "id": "c2af3b0e-7e53-4102-88b8-4d9cea1be0d8",
+      "notes": "in: delivery.json → out: facts.json · POST /v1/judge/compose (prepare): the facts decide first; hard_fail ends here; else the exact text Jev reads + prepare_digest",
+      "notesInFlow": true
+    },
+    {
+      "name": "Hard fail?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "h1",
+              "leftValue": "={{ $json.hard_fail === true }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "039a7992-9c11-4902-a64e-47518a3451c4",
+      "notes": "in: facts.json → out: facts.json · branch: a hard fail goes straight to the verdict without asking Jev",
+      "notesInFlow": true
+    },
+    {
+      "name": "Jev · TypeSafe (our credential)",
+      "type": "@taifoon/n8n-nodes-typesafe.taifoonTypeSafe",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        420
+      ],
+      "parameters": {
+        "operation": "ask",
+        "connection": "direct",
+        "state": "={{ JSON.stringify($json.jev.state) }}",
+        "questions": {},
+        "questionsJson": "={{ JSON.stringify($json.jev.questions) }}",
+        "routing": "{}",
+        "replyLanguage": "off",
+        "failClosed": true
+      },
+      "credentials": {
+        "taifoonTypeSafeApi": {
+          "id": "",
+          "name": "REPLACE: taifoonTypeSafeApi"
+        }
+      },
+      "notes": "in: facts.json → out: answers.json · TypeSafe ask on the prepared text: every RUBRIC_ASKED answer with its whole distribution",
+      "id": "ba778a32-16e0-4076-b815-ffd923ee73f0",
+      "notesInFlow": true
+    },
+    {
+      "name": "Judge · answers",
+      "type": "CUSTOM.taifoon",
+      "typeVersion": 1,
+      "position": [
+        1540,
+        420
+      ],
+      "parameters": {
+        "resource": "judge",
+        "operation": "compose",
+        "composeSubject": "handshake",
+        "composeHandshakeId": "={{ $('Delivery').first().json.handshake_id }}",
+        "composePriceUsdc": 1,
+        "composeMode": "answers",
+        "composeAnswers": "={{ JSON.stringify($json.answers) }}",
+        "composeModel": "={{ $json.model }}",
+        "composePrepareDigest": "={{ $('Judge · prepare').first().json.prepare_digest }}",
+        "composeAnsweredBy": "n8n-typesafe",
+        "composeExecutionId": "={{ $execution.id }}",
+        "composeLatencyMs": "={{ $json.latency_ms }}",
+        "composeRecord": "devnet"
+      },
+      "credentials": {
+        "taifoonRelayerApi": {
+          "id": "",
+          "name": "REPLACE: taifoonRelayerApi"
+        }
+      },
+      "id": "7b18e907-2293-4bb6-8199-c2a090bb7839",
+      "notes": "in: answers.json → out: verdict.json · POST /v1/judge/compose (answers): recompose under THRESHOLDS_v1, record decision.v2, anchor on JevDecisionLog",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// The verdict, with what the settlement needs carried forward. Two roads reach here: a hard fail straight from\n// Judge · prepare (the facts decided; Jev was not asked), or Judge · answers (our TypeSafe credential answered, the layer composed).\n// The receipt is the composed verdict: verdict (complete | reject | needs_review), auto, reasons[], receiptHash.\nconst j = $input.first().json;\nconst del = $('Delivery').first().json;\nconst inp = $('Inputs').first().json;\nif (j.ok === false) throw new Error('judge refused: ' + (j.code ? j.code + ': ' : '') + (j.error || JSON.stringify(j).slice(0, 300)));\nconst decision = j.decision || {};\nconst rc = j.receipt || {};\nreturn [{ json: { ...inp, handshake_id: del.handshake_id, evidence: del.evidence, reply_head: del.reply_head, decision_id: decision.id || null, decision_digest: decision.digest || null, decision_anchor: decision.anchor || null, verdict: rc.verdict || null, verdict_auto: rc.auto ?? null, forced: rc.forced || null, reasons: rc.reasons || [], receipt_hash: rc.receiptHash || null, next: j.next || null, judge_called: j.judge_called ?? null, model: j.model || null, judge_latency_ms: j.latency_ms ?? null, answers_source: j.answers_source || null, execution: j.execution || null, prepare_digest: j.prepare_digest || null, quota: j.quota || null } }];"
+      },
+      "id": "n5",
+      "name": "Verdict",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        300
+      ],
+      "notes": "in: verdict.json | facts.json → out: verdict.json · the composed verdict (complete | reject | needs_review) with what settlement needs carried forward",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "resource": "settlement",
+        "operation": "settle",
+        "kind": "agent",
+        "chainId": 36927,
+        "buyer": "={{ $json.buyer }}",
+        "seller": "={{ $json.seller }}",
+        "price": "={{ $json.price }}",
+        "evidence": "={{ $json.evidence }}",
+        "refId": "={{ $json.handshake_id }}",
+        "settleOptions": {
+          "endpoint": "={{ $json.endpoint }}",
+          "note": "={{ 'agent ' + $json.candidate + ' · decision ' + ($json.decision_id || 'none') + ' · verdict ' + ($json.verdict || 'n/a') }}",
+          "tenant": "={{ $json.tenant }}",
+          "deadline": "={{ Math.floor(Date.now() / 1000) + Number($json.deadline_sec || 120) }}"
+        }
+      },
+      "credentials": {
+        "taifoonRelayerApi": {
+          "id": "",
+          "name": "REPLACE: taifoonRelayerApi"
+        }
+      },
+      "id": "n6",
+      "name": "Settle",
+      "type": "CUSTOM.taifoon",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        300
+      ],
+      "notes": "in: verdict.json → out: settlement.json · POST /v1/settle: the plan (jobId, price, premium, deposit, calls[] in order, who signs each)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "callsField": "calls",
+        "onlySigner": "seller",
+        "onlyActions": "approve-deposit",
+        "sendRequires": false,
+        "wait": true
+      },
+      "credentials": {
+        "taifoonDevnetKeyApi": {
+          "id": "",
+          "name": "REPLACE: taifoonDevnetKeyApi"
+        }
+      },
+      "id": "n7",
+      "name": "Seller · approve deposit",
+      "type": "CUSTOM.taifoonDevnetSigner",
+      "typeVersion": 1,
+      "position": [
+        2200,
+        300
+      ],
+      "notes": "in: settlement.json → out: settlement.json · the seller approves D (> P); the tx joins settlement.txs",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "callsField": "calls",
+        "onlySigner": "buyer",
+        "onlyActions": "fund-job",
+        "sendRequires": false,
+        "wait": true
+      },
+      "credentials": {
+        "taifoonDevnetKeyApi": {
+          "id": "",
+          "name": "REPLACE: taifoonDevnetKeyApi"
+        }
+      },
+      "id": "n8",
+      "name": "Buyer · approve + fund",
+      "type": "CUSTOM.taifoonDevnetSigner",
+      "typeVersion": 1,
+      "position": [
+        2420,
+        300
+      ],
+      "notes": "in: settlement.json → out: settlement.json · the buyer approves P + π and calls fundJob: machine Delivered → Funded",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "callsField": "calls",
+        "onlySigner": "seller",
+        "onlyActions": "submit",
+        "sendRequires": false,
+        "wait": true
+      },
+      "credentials": {
+        "taifoonDevnetKeyApi": {
+          "id": "",
+          "name": "REPLACE: taifoonDevnetKeyApi"
+        }
+      },
+      "id": "n9",
+      "name": "Seller · submit",
+      "type": "CUSTOM.taifoonDevnetSigner",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        300
+      ],
+      "notes": "in: settlement.json → out: settlement.json · submit(jobId, evidenceDigest = delivery.digest): machine Funded → Submitted",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "callsField": "calls",
+        "onlySigner": "",
+        "onlyActions": "complete,capture",
+        "sendRequires": false,
+        "wait": true
+      },
+      "credentials": {
+        "taifoonDevnetKeyApi": {
+          "id": "",
+          "name": "REPLACE: taifoonDevnetKeyApi"
+        }
+      },
+      "id": "n10",
+      "name": "Buyer · complete + capture",
+      "type": "CUSTOM.taifoonDevnetSigner",
+      "typeVersion": 1,
+      "position": [
+        3080,
+        160
+      ],
+      "notes": "in: settlement.json → out: settlement.json · complete(jobId) (+ capture): machine → Settled",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.taifoon.io/v1/settle/decided",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "taifoonRelayerApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chainId: 36927, jobId: $('Settle').first().json.jobId, decision_id: $('Verdict').first().json.decision_id, end_tx: (($('Buyer · complete + capture').first().json.sent || []).find((s) => s.action === 'complete') || {}).tx || null }) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "name": "Settle row · decided",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3190,
+        20
+      ],
+      "id": "n10dec",
+      "credentials": {
+        "taifoonRelayerApi": {
+          "id": "",
+          "name": "REPLACE: taifoonRelayerApi"
+        }
+      },
+      "notes": "in: settlement.json → out: settlement.json · the settle row names the decision, not a document: POST /v1/settle/decided { jobId, decision_id, end_tx = the complete transaction } on the lane’s relayer key. The layer writes decided_by \"jev\" only when the chain proves it (an automatic complete, the decision’s anchor on the JevDecisionLog, the job bound to the handshake and its sealed reply, Completed for this job); it never errors the run"
+    },
+    {
+      "parameters": {
+        "jsCode": "// The record: every transaction with its proof and explorer link, the decision, the job, and whether money moved.\nconst legs = ['Seller · approve deposit', 'Buyer · approve + fund', 'Seller · submit', 'Buyer · complete + capture'];\nconst txs = [];\nfor (const n of legs) { let sent = []; try { sent = $(n).first().json.sent || []; } catch (e) { /* a leg the verdict skipped */ }\n  for (const s of sent) txs.push({ leg: n, action: s.action, tx: s.tx, status: s.status, block: s.block, proof: 'https://www.taifoon.io/v1/proof/tx/36927/' + s.tx, scan: 'https://www.taifoon.io/scan/36927/tx/' + s.tx }); }\nlet held = null; try { held = $('Held for review').first().json; } catch (e) { held = null; }\n// _SETTLE_DECIDED_v1_: what the layer wrote in the settle row after the complete (decided_by jev, or why not)\nlet decided = null; try { decided = $('Settle row · decided').first().json; } catch (e) { decided = null; }\nconst s = $('Settle').first().json;\nconst v = $('Verdict').first().json;\nconst complete = txs.find((t) => t.action === 'complete') || null;\nreturn [{ json: { handshake_id: v.handshake_id, decision_id: v.decision_id, decision_digest: v.decision_digest, decision_anchor_tx: v.decision_anchor ? v.decision_anchor.tx : null, verdict: v.verdict, verdict_auto: v.verdict_auto, reasons: v.reasons, receipt_hash: v.receipt_hash, judge: { called: v.judge_called, model: v.model, latency_ms: v.judge_latency_ms, answers_source: v.answers_source, execution: v.execution, prepare_digest: v.prepare_digest, quota: v.quota }, ending: complete ? 'completed: seller paid, deposit returned, payment captured' : held ? 'held: ' + held.next : 'incomplete', lane: v.lane || null, tenant: s.tenant || null, deadline: s.deadline ?? null, jobId: s.jobId, correlator: s.correlator, chainId: 36927, hook: s.hook, token: s.token, price: s.price, premium: s.premium, deposit: s.deposit, evidence: v.evidence, settlement_tx: complete ? complete.tx : null, settlement_proof: complete ? complete.proof : null, settle_row: decided ? { decided_by: decided.ok ? decided.decided_by || null : null, decision_id: decided.ok ? decided.decision_id || null : null, refused: decided.ok ? null : (decided.code || decided.error || 'no answer'), row: 'https://www.taifoon.io/v1/settle/' + s.jobId } : null, transactions: txs, all_mined: txs.every((t) => t.status === 'success') && txs.length === (complete ? 6 : 4) } }];"
+      },
+      "id": "n11",
+      "name": "Receipt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3300,
+        300
+      ],
+      "notes": "in: settlement.json → out: job.json · the whole JOB: hire, delivery, facts, verdict, settlement — every transaction with its proof link",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "g1",
+              "leftValue": "={{ $('Verdict').first().json.verdict }}",
+              "rightValue": "complete",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "n12",
+      "name": "Verdict says complete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2860,
+        300
+      ],
+      "notes": "in: settlement.json → out: settlement.json · branch on the composed verdict: complete → complete; otherwise hold (Submitted → Held)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.taifoon.io/v1/settle/evaluate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "taifoonRelayerApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ open: true, chainId: 36927, tenant: $('Settle').first().json.tenant || undefined, jobId: $('Settle').first().json.jobId, decision_id: $('Verdict').first().json.decision_id }) }}",
+        "options": {
+          "timeout": 30000,
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "name": "Operator step · open",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3080,
+        640
+      ],
+      "id": "n13op",
+      "credentials": {
+        "taifoonRelayerApi": {
+          "id": "",
+          "name": "REPLACE: taifoonRelayerApi"
+        }
+      },
+      "notes": "in: settlement.json → out: settlement.json · the evaluator leg, not a document: POST /v1/settle/evaluate {open:true} opens the operator step of a job held on needs_review. The workflow does not decide: the step waits for an operator record (decided_by loop-agent on the devnet, or operator with the operator key), anchored on chain before the evaluator posts. A composed reject is not an operator step (the layer answers not_needs_review)",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Held: the job is funded and the evidence is sealed; nothing is paid. The workflow does not decide: on needs_review the\n// operator step was opened through the evaluator leg (the node before), and it waits for an operator record.\nconst v = $('Verdict').first().json;\nconst s = $('Settle').first().json;\nlet op = null; try { op = $('Operator step · open').first().json; } catch (e) { op = null; }\nconst step = op && op.ok && op.operator_step ? op.operator_step : null;\nconst next = step\n  ? 'needs_review: operator step ' + step.status + ' (GET /v1/settle/operator/' + s.jobId + '); it waits for ' + step.waits_for\n  : v.next || (v.verdict === 'reject' ? 'reject: the buyer may reject on chain; the pool pays nothing on a rejection' : 'needs_review: the operator step was not opened (' + ((op && (op.code || op.error)) || 'no answer') + '); after the deadline anyone may expire the job');\nreturn [{ json: { held: true, verdict: v.verdict, reasons: v.reasons, next, operator_step: step ? { status: step.status, jev: step.jev, waits_for: step.waits_for } : null, jobId: s.jobId, hook: s.hook, chainId: s.chainId, deadline: s.deadline, what_is_on_chain: 'fundJob (price + premium in escrow, seller deposit locked) and submit (evidence digest sealed); complete/reject not sent' } }];"
+      },
+      "id": "n13",
+      "name": "Held for review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3080,
+        480
+      ],
+      "notes": "in: settlement.json → out: settlement.json · needs_review / reject: funded and sealed, nothing paid; the operator step (a record, then the evaluator’s postVerdict) or the deadline decides",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Every transaction of the run is proven under the V5 superroot before the run ends (/v1/proof/tx/36927/<tx>).\n// The producer runs ~6-8 devnet blocks (~15 s) behind the head, and its blob route can answer \"pending\" under load:\n// a pending answer is waited out with backoff (5 s doubling to 60 s), never reported as a gap. The wait is capped at\n// 240 s (n8n's task-runner limit); what is still pending is listed, and the runner (workflows/e2e.sh) keeps waiting.\nconst r = $input.first().json;\nconst SITE = 'https://www.taifoon.io';\nconst txs = [...(r.transactions || []).map((t) => ({ leg: t.leg, action: t.action, tx: t.tx })), ...(r.decision_anchor_tx ? [{ leg: 'decision anchor', action: 'JevDecisionLog.record', tx: r.decision_anchor_tx }] : [])];\nconst until = Date.now() + 240000;\nconst sleep = (ms) => new Promise((res) => setTimeout(res, ms));\nconst final = (c) => Boolean(c && c.proof_served && c.block_hash_matches && c.within_verifiable_range);\nconst proofs = [];\nfor (const t of txs) {\n  let wait = 5000, attempts = 0, last = null;\n  for (;;) {\n    attempts++;\n    try { last = await this.helpers.httpRequest({ method: 'GET', url: SITE + '/v1/proof/tx/36927/' + t.tx + (attempts > 3 ? '?wait=1' : ''), json: true, timeout: 60000, ignoreHttpStatusErrors: true }); }\n    catch (e) { last = { ok: false, error: String((e && e.message) || e).slice(0, 160) }; }\n    if (final(last && last.checks)) break;\n    if (last && last.code === 'PROVABLE_GAP' && last.gap) break;   // the producer skipped this block: no wait fills it\n    if (Date.now() + wait > until) break;\n    await sleep(wait); wait = Math.min(wait * 2, 60000);\n  }\n  const c = (last && last.checks) || {};\n  proofs.push({ ...t, finalized: final(c), gap: Boolean(last && last.gap), attempts, checks: c, proof: SITE + '/v1/proof/tx/36927/' + t.tx });\n}\nreturn [{ json: { ...r, proofs, all_proven: proofs.length > 0 && proofs.every((p) => p.finalized), proofs_pending: proofs.filter((p) => !p.finalized).map((p) => p.tx) } }];"
+      },
+      "id": "n17",
+      "name": "Proofs · wait",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3520,
+        300
+      ],
+      "notes": "in: job.json → out: job.json · GET /v1/proof/tx/36927/<tx> for every transaction of the run; pending is retried with backoff (5 s -> 60 s, <= 240 s), never reported as a gap",
+      "notesInFlow": true
+    }
+  ],
+  "connections": {
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inputs": {
+      "main": [
+        [
+          {
+            "node": "Offer + deliver",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Offer + deliver": {
+      "main": [
+        [
+          {
+            "node": "Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delivery": {
+      "main": [
+        [
+          {
+            "node": "Judge · prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verdict": {
+      "main": [
+        [
+          {
+            "node": "Settle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settle": {
+      "main": [
+        [
+          {
+            "node": "Seller · approve deposit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seller · approve deposit": {
+      "main": [
+        [
+          {
+            "node": "Buyer · approve + fund",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buyer · approve + fund": {
+      "main": [
+        [
+          {
+            "node": "Seller · submit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seller · submit": {
+      "main": [
+        [
+          {
+            "node": "Verdict says complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buyer · complete + capture": {
+      "main": [
+        [
+          {
+            "node": "Settle row · decided",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verdict says complete?": {
+      "main": [
+        [
+          {
+            "node": "Buyer · complete + capture",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Operator step · open",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Held for review": {
+      "main": [
+        [
+          {
+            "node": "Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Judge · prepare": {
+      "main": [
+        [
+          {
+            "node": "Hard fail?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hard fail?": {
+      "main": [
+        [
+          {
+            "node": "Verdict",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Jev · TypeSafe (our credential)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jev · TypeSafe (our credential)": {
+      "main": [
+        [
+          {
+            "node": "Judge · answers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Judge · answers": {
+      "main": [
+        [
+          {
+            "node": "Verdict",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Receipt": {
+      "main": [
+        [
+          {
+            "node": "Proofs · wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Operator step · open": {
+      "main": [
+        [
+          {
+            "node": "Held for review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Settle row · decided": {
+      "main": [
+        [
+          {
+            "node": "Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "meta": {
+    "taifoon": {
+      "contract": "https://www.taifoon.io/schemas/coordination/v1/",
+      "steps": {
+        "Start": {
+          "in": null,
+          "out": null,
+          "does": "start a run (swap for a Webhook or Schedule trigger)"
+        },
+        "Inputs": {
+          "in": null,
+          "out": "https://www.taifoon.io/schemas/coordination/v1/hire.json",
+          "does": "the hire intent: task, candidate seller, endpoint/tool, buyer, price, chain (a HIRE in state Open)"
+        },
+        "Offer + deliver": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/hire.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/job.json",
+          "does": "POST /v1/handshake {dispatch:true}: the offer goes to the seller’s own endpoint; the reply is held with its keccak digest"
+        },
+        "Delivery": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/job.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/delivery.json",
+          "does": "stop unless a reply digest is held (no digest = nothing to settle)"
+        },
+        "Judge · prepare": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/delivery.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/facts.json",
+          "does": "POST /v1/judge/compose (prepare): the facts decide first; hard_fail ends here; else the exact text Jev reads + prepare_digest"
+        },
+        "Hard fail?": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/facts.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/facts.json",
+          "does": "branch: a hard fail goes straight to the verdict without asking Jev"
+        },
+        "Jev · TypeSafe (our credential)": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/facts.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/answers.json",
+          "does": "TypeSafe ask on the prepared text: every RUBRIC_ASKED answer with its whole distribution"
+        },
+        "Judge · answers": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/answers.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+          "does": "POST /v1/judge/compose (answers): recompose under THRESHOLDS_v1, record decision.v2, anchor on JevDecisionLog"
+        },
+        "Verdict": {
+          "in": [
+            "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+            "https://www.taifoon.io/schemas/coordination/v1/facts.json"
+          ],
+          "out": "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+          "does": "the composed verdict (complete | reject | needs_review) with what settlement needs carried forward"
+        },
+        "Settle": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "does": "POST /v1/settle: the plan (jobId, price, premium, deposit, calls[] in order, who signs each)"
+        },
+        "Seller · approve deposit": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "does": "the seller approves D (> P); the tx joins settlement.txs"
+        },
+        "Buyer · approve + fund": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "does": "the buyer approves P + π and calls fundJob: machine Delivered → Funded"
+        },
+        "Seller · submit": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "does": "submit(jobId, evidenceDigest = delivery.digest): machine Funded → Submitted"
+        },
+        "Verdict says complete?": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "does": "branch on the composed verdict: complete → complete; otherwise hold (Submitted → Held)"
+        },
+        "Buyer · complete + capture": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "does": "complete(jobId) (+ capture): machine → Settled"
+        },
+        "Settle row · decided": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "does": "the settle row names the decision, not a document: POST /v1/settle/decided { jobId, decision_id, end_tx = the complete transaction } on the lane’s relayer key. The layer writes decided_by \"jev\" only when the chain proves it (an automatic complete, the decision’s anchor on the JevDecisionLog, the job bound to the handshake and its sealed reply, Completed for this job); it never errors the run"
+        },
+        "Held for review": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "does": "needs_review / reject: funded and sealed, nothing paid; the operator step (a record, then the evaluator’s postVerdict) or the deadline decides"
+        },
+        "Receipt": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/job.json",
+          "does": "the whole JOB: hire, delivery, facts, verdict, settlement — every transaction with its proof link"
+        },
+        "Proofs · wait": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/job.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/job.json",
+          "does": "GET /v1/proof/tx/36927/<tx> for every transaction of the run; pending is retried with backoff (5 s -> 60 s, <= 240 s), never reported as a gap"
+        },
+        "Operator step · open": {
+          "in": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "out": "https://www.taifoon.io/schemas/coordination/v1/settlement.json",
+          "does": "the evaluator leg, not a document: POST /v1/settle/evaluate {open:true} opens the operator step of a job held on needs_review. The workflow does not decide: the step waits for an operator record (decided_by loop-agent on the devnet, or operator with the operator key), anchored on chain before the evaluator posts. A composed reject is not an operator step (the layer answers not_needs_review)"
+        }
+      }
+    }
+  },
+  "tags": []
+}

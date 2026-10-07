@@ -21,7 +21,7 @@ export type Verification = {
   problems: string[];
 };
 
-type Log = { transactionHash: string; blockNumber: string; topics: string[]; data: Hex };
+export type Log = { transactionHash: string; blockNumber: string; topics: string[]; data: Hex };
 const hexN = (n: number) => '0x' + n.toString(16);
 async function rpcCall<T>(rpc: string, f: typeof fetch, method: string, params: unknown[]): Promise<T> {
   const r = await f(rpc, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(30_000) });
@@ -38,12 +38,45 @@ async function recordedAt(rpc: string, f: typeof fetch, address: string, digest:
   const out = await rpcCall<string>(rpc, f, 'eth_call', [{ to: address, data: SEL_RECORDED_AT + digest.slice(2) }, 'latest']);
   return out && out !== '0x' ? Number(BigInt(out)) : 0;
 }
-/** eth_getLogs in windows of `step` blocks (public Base endpoints refuse wide ranges). */
-async function logsWindowed(rpc: string, f: typeof fetch, address: string, topics: Array<string | null>, from: number, to: number, step = 2000): Promise<Log[]> {
+/** The block cap an endpoint names when it refuses a range ("eth_getLogs is limited to a 500 range"), or null. */
+export function rangeCapOf(message: string): number | null {
+  const m = /limited to (?:a )?(\d+)(?: block)? range/i.exec(message) ?? /range (?:is )?(?:limited|capped) (?:to|at) (\d+)/i.exec(message);
+  return m ? Number(m[1]) : null;
+}
+/**
+ * eth_getLogs over [from, to], nearest to `center` first, in windows of at most `step` blocks (public Base endpoints
+ * refuse wide ranges: mainnet.base.org caps a call at 500 blocks). A refusal that names a smaller cap shrinks the
+ * window and retries. Stops at the first window where `hit` matches, so a record next to its answer costs one call.
+ */
+export async function logsAround(
+  rpc: string, f: typeof fetch, address: string, topics: Array<string | null>, center: number, from: number, to: number,
+  hit: (l: Log) => boolean, step = 500,
+): Promise<Log[]> {
   const head = Number(BigInt(await rpcCall<string>(rpc, f, 'eth_blockNumber', [])));
   to = Math.min(to, head); // endpoints refuse a range past the head
+  center = Math.min(Math.max(center, from), to);
   const out: Log[] = [];
-  for (let a = from; a <= to; a += step) out.push(...(await logs(rpc, f, address, topics, a, Math.min(to, a + step - 1))));
+  const get = async (a: number, b: number): Promise<Log[]> => {
+    for (;;) {
+      try {
+        const got: Log[] = [];
+        for (let x = a; x <= b; x += step) got.push(...(await logs(rpc, f, address, topics, x, Math.min(b, x + step - 1))));
+        return got;
+      } catch (e) {
+        const cap = rangeCapOf(e instanceof Error ? e.message : String(e));
+        if (!cap || cap >= step) throw e;
+        step = cap;
+      }
+    }
+  };
+  // the window around the center, then outward on both sides, one window at a time
+  let lo = Math.max(from, center - Math.floor(step / 2)), hi = Math.min(to, lo + step - 1);
+  out.push(...(await get(lo, hi)));
+  while (!out.some(hit) && (lo > from || hi < to)) {
+    if (hi < to) { const b = Math.min(to, hi + step); out.push(...(await get(hi + 1, b))); hi = b; }
+    if (out.some(hit)) break;
+    if (lo > from) { const a = Math.max(from, lo - step); out.push(...(await get(a, lo - 1))); lo = a; }
+  }
   return out;
 }
 const answerEvent = (l: Log): AnswerEvent => { const [recorder, inputDigest, decisionDigest, model, uri, , trusted] = decode(ANSWERED_DATA, l.data); return { tx: l.transactionHash, block: parseInt(l.blockNumber, 16), recorder: String(recorder), trusted: Boolean(trusted), subject: l.topics[2] as Hex, inputDigest: inputDigest as Hex, decisionDigest: decisionDigest as Hex, model: String(model), uri: String(uri) }; };
@@ -97,7 +130,8 @@ export async function verify(x: Receipt | string, opts: { rpc?: string; fetch?: 
       if (!subjectId && first && !/^0x0{64}$/.test(first.decisionDigest)) { subjectId = first.subject; decision = first.decisionDigest; }
       if (subjectId && decision) {
         const found = network === 'base' && first
-          ? await logsWindowed(rpc, f, dev.decisionLog.address, [TOPIC_DECIDED, subjectId], Math.max(dev.decisionLog.fromBlock, first.block - 4000), first.block + 4000)
+          ? await logsAround(rpc, f, dev.decisionLog.address, [TOPIC_DECIDED, subjectId], first.block, Math.max(dev.decisionLog.fromBlock, first.block - 4000), first.block + 4000,
+            (l) => decisionEvent(l).digest.toLowerCase() === decision!.toLowerCase())
           : await logs(rpc, f, dev.decisionLog.address, [TOPIC_DECIDED, subjectId], dev.decisionLog.fromBlock);
         onChain.decisions = found.map(decisionEvent).filter((d) => d.digest.toLowerCase() === decision!.toLowerCase());
       }

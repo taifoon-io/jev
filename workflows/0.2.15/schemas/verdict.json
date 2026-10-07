@@ -1,0 +1,296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.taifoon.io/schemas/coordination/v1/verdict.json",
+  "title": "VERDICT — the decision recorded once, and the receipt it composes to",
+  "description": "decision.v1/v2 as the ledger writes it (the digest recomputes from kind, subject, model, answers and — v2 — input_digest), plus the RUBRIC_v1 composed verdict when the source states it. A REF verdict never produces a cheat; needs_review holds the job for the evaluator leg.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "taifoon.verdict.v1",
+      "x-stage": "L",
+      "description": "which canonical entity this record is; fixed per schema"
+    },
+    "decision_id": {
+      "type": "string",
+      "pattern": "^decision-[0-9]+-[0-9a-f]{10}$",
+      "x-stage": "S5"
+    },
+    "version": {
+      "enum": [
+        "decision.v1",
+        "decision.v2"
+      ],
+      "x-stage": "S5"
+    },
+    "kind": {
+      "enum": [
+        "pad",
+        "suggest",
+        "assemble",
+        "ref",
+        "grade",
+        "study"
+      ],
+      "x-stage": "S5"
+    },
+    "subject": {
+      "type": "object",
+      "properties": {
+        "chain_id": {
+          "$ref": "common.json#/$defs/chain_id"
+        },
+        "at": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/address"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "type": "string"
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "chain_id",
+        "at",
+        "ref",
+        "label"
+      ],
+      "additionalProperties": false,
+      "x-stage": "S5"
+    },
+    "subject_id": {
+      "$ref": "common.json#/$defs/bytes32",
+      "x-stage": "S5"
+    },
+    "subject_job_key": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/job_key"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "L"
+    },
+    "digest": {
+      "$ref": "common.json#/$defs/bytes32",
+      "x-stage": "S5"
+    },
+    "input_digest": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/bytes32"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S5"
+    },
+    "answers_digest": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/bytes32"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S5"
+    },
+    "answers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "question": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "options": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value": {
+            "type": "string"
+          },
+          "probabilities": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "confidence": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "question",
+          "options",
+          "value",
+          "probabilities",
+          "confidence"
+        ],
+        "additionalProperties": false
+      },
+      "x-stage": "S5"
+    },
+    "confidence_bps": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000,
+      "x-stage": "S5"
+    },
+    "model": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-stage": "S5"
+    },
+    "answers_source": {
+      "enum": [
+        "layer",
+        "caller-credential"
+      ],
+      "x-stage": "S5"
+    },
+    "rubric": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "hash": {
+          "$ref": "common.json#/$defs/bytes32"
+        }
+      },
+      "required": [
+        "version",
+        "hash"
+      ],
+      "additionalProperties": false,
+      "x-stage": "S5"
+    },
+    "composed": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "verdict": {
+          "enum": [
+            "complete",
+            "reject",
+            "needs_review"
+          ]
+        },
+        "auto": {
+          "type": "boolean"
+        },
+        "forced": {
+          "anyOf": [
+            {
+              "const": "hard_fail"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "receipt_hash": {
+          "anyOf": [
+            {
+              "$ref": "common.json#/$defs/bytes32"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "verdict",
+        "auto",
+        "forced",
+        "reasons",
+        "receipt_hash"
+      ],
+      "additionalProperties": false,
+      "x-stage": "S5"
+    },
+    "anchors": {
+      "type": "array",
+      "items": {
+        "$ref": "common.json#/$defs/anchor"
+      },
+      "x-stage": "S6"
+    },
+    "source": {
+      "$ref": "common.json#/$defs/source",
+      "x-stage": "L"
+    }
+  },
+  "required": [
+    "schema",
+    "decision_id",
+    "version",
+    "kind",
+    "subject",
+    "subject_id",
+    "subject_job_key",
+    "digest",
+    "input_digest",
+    "answers_digest",
+    "answers",
+    "confidence_bps",
+    "model",
+    "answers_source",
+    "rubric",
+    "composed",
+    "anchors",
+    "source"
+  ],
+  "additionalProperties": false
+}

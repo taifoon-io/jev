@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.taifoon.io/schemas/coordination/v1/facts.json",
+  "title": "FACTS — what code establishes before anyone is asked",
+  "description": "Deterministic: delivered or not, every check that could be made, the ending the events already decide, and the labelled facts + gaps of the evidence pack. A failed check is a hard fail — reject, and Jev is never asked (judge-compose.compose). GRADEABLE.md is the rule that turns HIRE + DELIVERY + FACTS into what Jev reads.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "taifoon.facts.v1",
+      "x-stage": "L",
+      "description": "which canonical entity this record is; fixed per schema"
+    },
+    "subject": {
+      "$ref": "common.json#/$defs/job_key",
+      "x-stage": "L"
+    },
+    "job": {
+      "$ref": "common.json#/$defs/job_ref",
+      "x-stage": "S1"
+    },
+    "delivered": {
+      "type": "boolean",
+      "x-stage": "S4"
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": [
+          "boolean",
+          "null"
+        ]
+      },
+      "x-stage": "S4"
+    },
+    "checks_ok": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "x-stage": "S4"
+    },
+    "det": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "class": {
+          "type": "string"
+        },
+        "why": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "class",
+        "why"
+      ],
+      "additionalProperties": false,
+      "x-stage": "S4"
+    },
+    "ending": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/ending"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S2"
+    },
+    "det_value": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/ref_value"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S4"
+    },
+    "verdict_class": {
+      "anyOf": [
+        {
+          "$ref": "common.json#/$defs/verdict_class"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "x-stage": "S2"
+    },
+    "reason_on_chain": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "x-stage": "S1"
+    },
+    "pair": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "jobs": {
+          "type": "integer"
+        },
+        "endings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        }
+      },
+      "required": [
+        "jobs",
+        "endings"
+      ],
+      "additionalProperties": false,
+      "x-stage": "S2"
+    },
+    "price_usdc": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "x-stage": "S4"
+    },
+    "pack": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "facts": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "state": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "facts",
+        "gaps",
+        "state"
+      ],
+      "additionalProperties": false,
+      "x-stage": "S4"
+    },
+    "anchors": {
+      "type": "array",
+      "items": {
+        "$ref": "common.json#/$defs/anchor"
+      },
+      "x-stage": "S4"
+    },
+    "source": {
+      "$ref": "common.json#/$defs/source",
+      "x-stage": "L"
+    }
+  },
+  "required": [
+    "schema",
+    "subject",
+    "job",
+    "delivered",
+    "checks",
+    "checks_ok",
+    "det",
+    "ending",
+    "det_value",
+    "verdict_class",
+    "reason_on_chain",
+    "pair",
+    "price_usdc",
+    "pack",
+    "anchors",
+    "source"
+  ],
+  "additionalProperties": false
+}

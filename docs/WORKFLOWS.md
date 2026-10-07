@@ -13,8 +13,9 @@ The node outputs the receipt and the unsigned calls, and it signs nothing. With 
 
 ## Workflows
 
-`workflows/0.2.14/` holds the four n8n workflows that run Jev (`workflows/0.2.7/` and `workflows/0.2.2/` are kept as
-they shipped; 0.2.14 adds the operator step and the settle row's decision step to `hire-judge-settle.json`). A release attaches the same files
+`workflows/0.2.15/` holds the four n8n workflows that run Jev (`workflows/0.2.14/`, `workflows/0.2.7/` and `workflows/0.2.2/` are
+kept as they shipped; 0.2.14 added the operator step and the settle row's decision step to `hire-judge-settle.json`; 0.2.15
+sets its devnet deadline to 120 s, was 300 s, with a 120 s fallback, was 1 h). A release attaches the same files
 as `jev-workflows-<version>.zip` (`jev-workflows-0.2.7.zip` for 0.2.7):
 
 - **`hire-judge-settle.json`** runs hire → prepare (facts) → TypeSafe (the four RUBRIC_v1 questions) → answers
@@ -27,7 +28,7 @@ as `jev-workflows-<version>.zip` (`jev-workflows-0.2.7.zip` for 0.2.7):
 
 Credential references are placeholders: `{ "id": "", "name": "REPLACE: <credential type>" }`. After import, pick your
 own credential of that type. Each step names the entity it takes and emits by `$id` (`meta.taifoon.steps`). The schemas
-behind those `$id`s are in `workflows/0.2.14/schemas/`. `manifest.json` pins every file by sha256.
+behind those `$id`s are in `workflows/0.2.15/schemas/`. `manifest.json` pins every file by sha256.
 `workflows/0.2.14/README.md` explains each workflow step by step and lists the nodes and credentials it needs:
 
 - `@taifoon/n8n-nodes-typesafe`, tested with 2.0.1, is on npm.
