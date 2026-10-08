@@ -146,7 +146,7 @@ code checks reject is still graded). Exit codes: `0` done, `1` a step failed, `2
 | `facts({ delivered, checks, priceUsdc? })` | Runs the checks your protocol supplies |
 | `record(receipt, { network, send? })` | Returns the unsigned `JevAnswerLog.record` and `JevDecisionLog.record` calls |
 | `evaluatorCall(protocol, jobId, verdict, digest)` | Returns the one unsigned call that ends the job; `null` for needs_review |
-| `verify(receiptOrDigest)` | Recomputes every digest and finds the records on chain |
+| `verify(receiptOrDigest, { network? })` | Recomputes every digest and finds the records on chain (the devnet unless you name a chain; see Chains) |
 
 `verifyDecision(record, { answers? })` does the same for a decision as the coordination layer serves it at
 `/v1/judge/decisions/{id}`: the input fingerprint, the decision digest, the answers digest and the verdict RUBRIC_v1
@@ -172,6 +172,40 @@ npx @taifoon/jev verify <digest> --network base
 npx @taifoon/jev verify <decision id> --network base   # recompute the served record offline, then find it on chain
 npx @taifoon/jev workflows export ./jev-workflows
 ```
+
+## Chains
+
+`verify` reads the Jev logs on every chain they are deployed to: the Taifoon devnet (36927), Base (8453), Arbitrum One
+(42161), Arc (5042) and Monad (143). Robinhood Chain (4663), Taifoon mainnet (3692781) and Ethereum (1) are known
+chains with no Jev log yet; `verify` says so instead of reading them.
+
+| Flag | What it does |
+|---|---|
+| `--chain <id or name>` | Read one chain: `devnet`, `base`, `arbitrum`, `arc`, `monad`, `robinhood`, `taifoon`, or a chain id |
+| `--network devnet\|base\|any` | The earlier flag; still works. `any` is the same as naming no chain |
+| `--rpc <url[,url]>` | Read through these endpoints instead of the rotation below |
+
+With no chain named, a decision id is read on the chain its record names (its anchor); a bare digest is looked up on
+the devnet first, then Base, then the other chains, and the first chain that holds it answers. Nothing reads a mainnet
+unless the record or you name one: the tests and examples use the devnet.
+
+Every chain read goes through the warmbed rotation (`https://warmbed.taifoon.dev`), which lists the endpoints it
+measured to serve log windows for that chain. A rate limit, a server error or a timeout moves the read to the next
+endpoint, two passes over the list; a revert does not. When warmbed does not answer, the package uses the static list
+it ships (`src/rpc-fallback.ts`, generated from the RPC registry).
+
+`onChain.status` in the output tells the outcomes apart:
+
+| `status` | Meaning |
+|---|---|
+| `recorded` | The answer row is on chain (and the decision row, when there is one: `checks.decisionOnChain`) |
+| `not_recorded` | The chain answered and holds no row for this digest |
+| `rpc_unavailable` | No endpoint answered; the row may exist. Try again later, or pass `--rpc` |
+| `not_deployed` | No Jev log on that chain |
+| `skipped` | `verify(x, { chain: false })`: digests recomputed, no chain read |
+
+In code: `verify(digest, { network: 'arbitrum' })` (a name or a chain id), `{ rpc: 'https://…' }`, and `JevChainError`
+(`code`: `rpc_unavailable`, `not_deployed`, `reverted`, `bad_input`) from the lower-level calls.
 
 ## Licence
 

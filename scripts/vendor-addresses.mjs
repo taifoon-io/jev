@@ -32,11 +32,22 @@ export function render(doc) {
     if (!c) throw new Error(`the registry has no ${system} "${name}" on chain ${chain}`);
     return `  /** ${system} · ${name} (${c.status}) */\n  ${key}: { chainId: ${chain}, address: '${c.address}', block: ${c.deploy.block ?? 'null'} },`;
   });
+  // every chain the registry has a live (or devnet) JevAnswerLog AND JevDecisionLog on: verify() reads any of them
+  const jev = (doc.systems.jev?.contracts ?? []).filter((c) => c.status !== 'superseded');
+  const pick = (chain, base) => jev.find((c) => c.chain === chain && (c.name === base || c.name === `${base} (devnet)`));
+  const chains = [...new Set(jev.map((c) => c.chain))].sort((a, b) => a - b).filter((c) => pick(c, 'JevAnswerLog') && pick(c, 'JevDecisionLog'));
+  const logRows = chains.map((c) => { const a = pick(c, 'JevAnswerLog'); const d = pick(c, 'JevDecisionLog');
+    return `  ${c}: { answerLog: { address: '${a.address}', fromBlock: ${a.deploy.block} }, decisionLog: { address: '${d.address}', fromBlock: ${d.deploy.block} } },`; });
   return `// VENDORED from an address registry (addresses.json, public subset) by scripts/vendor-addresses.mjs - do not edit here.
 // Only the contracts this SDK names; test/addresses-vendor.test.ts checks the copy against the registry.
 export const REGISTRY_ADDRESSES = {
 ${rows.join('\n')}
 } as const;
+
+/** The Jev logs on every chain the registry deploys them to (JevAnswerLog + JevDecisionLog, from their deploy block). */
+export const JEV_LOGS: Readonly<Record<number, { answerLog: { address: string; fromBlock: number }; decisionLog: { address: string; fromBlock: number } }>> = {
+${logRows.join('\n')}
+};
 `;
 }
 

@@ -20,6 +20,9 @@ export { prepareJob, runCheck } from './job.js';
 export { record } from './record.js';
 export { evaluatorCall } from './evaluator/index.js';
 export { verify } from './verify.js';
+export { JevChainError, type JevChainErrorCode } from './errors.js';
+export { CHAIN_NAMES, JEV_CHAINS, chainIdOf, chainName, jevLogsOn } from './chains.js';
+export { rpcRotation, WARMBED } from './rpc.js';
 export { verifyDecision } from './decision.js';
 export { pipeline, STEPS, LAYER, factsFromEvidence, protocolFor, parseJob, localQuote } from './pipeline.js';
 export { RUBRIC_v1 } from './rubric.js';
@@ -29,7 +32,7 @@ export type { GradeInput, Receipt } from './grade.js';
 export type { FactsInput, Check } from './facts.js';
 export type { JobSpec, JobCheck, PreparedJob } from './job.js';
 export type { Recorded, UnsignedCall, Network } from './record.js';
-export type { Verification, AnswerEvent, DecisionEvent } from './verify.js';
+export type { Verification, AnswerEvent, DecisionEvent, ChainStatus, VerifyOptions, VerifyNetwork } from './verify.js';
 export type { DecisionRecord, DecisionCheck } from './decision.js';
 export type { Protocol, Adapter, AdapterOpts, EvaluatorCall } from './evaluator/index.js';
 export type { JevError } from './ask.js'; // thrown with .status and .next

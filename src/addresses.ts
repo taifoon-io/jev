@@ -22,3 +22,12 @@ export const REGISTRY_ADDRESSES = {
   /** standards-erc8183 · BitAgent ERC-8183 escrow (live) */
   bitagentErc8183: { chainId: 8453, address: '0x5009ABB3A309115a4a682C66BAf3BC9E0329BaB7', block: 48395723 },
 } as const;
+
+/** The Jev logs on every chain the registry deploys them to (JevAnswerLog + JevDecisionLog, from their deploy block). */
+export const JEV_LOGS: Readonly<Record<number, { answerLog: { address: string; fromBlock: number }; decisionLog: { address: string; fromBlock: number } }>> = {
+  143: { answerLog: { address: '0x29fEEc116e0CAbbaf38e9EBF2BBf65d82D672104', fromBlock: 110216088 }, decisionLog: { address: '0x1aC6266b9926cB3E206D5dc0c9d1B7c873aa150a', fromBlock: 110216093 } },
+  5042: { answerLog: { address: '0x45214361A8cADb8aEe6302cd5653E119E5a89839', fromBlock: 24071071 }, decisionLog: { address: '0x863db7dAc69CC614a98822082cbe884F1f3b55cA', fromBlock: 24071074 } },
+  8453: { answerLog: { address: '0x8e9B9cE86a2d55c10318607b0c815B7B8C66254d', fromBlock: 51863008 }, decisionLog: { address: '0x209490d6A0FFC5368A42b0c2208BDCda853f6a92', fromBlock: 51856200 } },
+  36927: { answerLog: { address: '0xD8c1d8188Fc8EE388792f6EB3B3dbd4f341Ba8e3', fromBlock: 1106754 }, decisionLog: { address: '0x1D622511862DD7DEffB8fEeBc225E0FAdA1e9A05', fromBlock: 981099 } },
+  42161: { answerLog: { address: '0x29fEEc116e0CAbbaf38e9EBF2BBf65d82D672104', fromBlock: 511340178 }, decisionLog: { address: '0x1aC6266b9926cB3E206D5dc0c9d1B7c873aa150a', fromBlock: 511340188 } },
+};
