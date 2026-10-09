@@ -1,7 +1,7 @@
 // pipeline(): one job through the coordination layer's steps, each step a function with a typed output.
 //   pick → evidence → facts → grade → record → evaluator → premium → verify
 // Every step works without the layer too: pass `evidence` (your own pack) and the layer is never read; `grade` then
-// runs on your own TypeSafe key (or answers you already have), `record` returns unsigned calls, `premium` is priced from a `sellerRecord` you pass (or skipped). With the layer
+// runs on your own TypeSafe key (or answers you already have, or without either on the caller's free grades on the layer), `record` returns unsigned calls, `premium` is priced from a `sellerRecord` you pass (or skipped). With the layer
 // (https://coord.taifoon.dev by default) the job comes from /v1/judge/queue, the pack from /v1/judge/evidence, the
 // seller's terms from /v1/pools/quote, and — only with a relayer key — the answers are recorded on the layer through
 // /v1/judge/answers/record. Nothing here signs a transaction.
@@ -198,10 +198,12 @@ export async function pipeline(o: PipelineOpts = {}): Promise<Trace> {
   await step('grade', async () => {
     const g: GradeInput = { subject: o.subject ? o.subject(t.job!) : { chainId: t.job!.chainId, ref: t.job!.jobId, ...(o.evidence?.label ? { label: o.evidence.label } : {}) }, evidence: pack.state, facts: runFacts(factsIn!), fetch: f, ...(o.caller ? { caller: o.caller } : {}) };
     if (o.answers) { g.answers = o.answers; if (o.model) g.model = o.model; } else if (o.key) g.key = o.key;
+    // _FREE_GRADES_v1_: no key → the caller's free grades on this layer (paid from relayerKey's balance past them); offline: none
+    else { g.layer = layer ?? false; g.layerKey = o.relayerKey ?? null; }
     // no key: a job the code checks reject is still graded (Jev is not asked); only asking Jev needs the key
     try { t.receipt = await grade(g); }
     catch (e) {
-      if (!o.key && !o.answers && /TypeSafe key/.test((e as Error).message)) throw new Error('Jev needs your TypeSafe key: set TYPESAFE_KEY (console.typesafe.ai), or pass answers you already have');
+      if (!o.key && !o.answers && !layer && /TypeSafe key/.test((e as Error).message)) throw new Error('Jev needs your TypeSafe key: set TYPESAFE_KEY (console.typesafe.ai), or pass answers you already have');
       throw e;
     }
     return { verdict: t.receipt.verdict, reasons: t.receipt.reasons, model: t.receipt.model, receiptHash: t.receipt.receiptHash };

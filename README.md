@@ -14,7 +14,8 @@ npx @taifoon/jev run --demo
 
 ![npx @taifoon/jev run --demo: a BitAgent job on Base, graded by Jev, checked against the chain](https://raw.githubusercontent.com/taifoon-io/jev/main/docs/demo.gif)
 
-Then grade your own with your TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai). Installing it also
+Then grade your own: with no key, on your free grades on the Taifoon coordination layer (3 a day per caller), or with
+your TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai). Installing it also
 installs Taifoon's other packages (@taifoon/jev-wilson, @taifoon/n8n-nodes-typesafe). No key inside, and it signs nothing. Recording a grade on chain is optional.
 
 ## Quick start
@@ -55,7 +56,7 @@ claims the evidence cannot support. Grade one with your key:
 ```
 TYPESAFE_KEY=… npx @taifoon/jev run --job-file examples/jobs/invoice-extraction.json
 npx @taifoon/jev run --demo      # offline, no key: replays the Base job below and checks it against the chain
-npx @taifoon/jev run             # a live Base job from the coordination layer's queue (needs TYPESAFE_KEY)
+npx @taifoon/jev run             # a live Base job from the coordination layer's queue (your TYPESAFE_KEY, else the free grades)
 ```
 
 ## A Base job, graded
@@ -121,8 +122,9 @@ Safe by default: your own TypeSafe key only, nothing recorded, nothing signed or
 | `--seller-record <k>/<n>` | read from the layer | Price the premium here from the seller's record (k delivered of n graded) with [`@taifoon/jev-wilson`](https://www.npmjs.com/package/@taifoon/jev-wilson): the layer's numbers, no request |
 | `--yes` / `--json` | ask per step / text | Run every step without asking / print the whole trace as JSON |
 
-Environment: `TYPESAFE_KEY` (your key; without it a job that needs Jev stops and says where to get one, while a job the
-code checks reject is still graded). Exit codes: `0` done, `1` a step failed, `2` a flag was refused.
+Environment: `TYPESAFE_KEY` (your key; without it a job that needs Jev is graded on your free grades on the layer, and
+past them it stops and says how to pay one grade; a job the code checks reject is graded either way; `--no-layer`, `--demo` and `--job-file` ask
+no one). `TAIFOON_RELAYER_KEY` pays layer grades past the free ones from that key's balance. Exit codes: `0` done, `1` a step failed, `2` a flag was refused.
 
 ## What you must know
 
@@ -132,8 +134,12 @@ code checks reject is still graded). Exit codes: `0` done, `1` a step failed, `2
 - **Code composes the verdict** under THRESHOLDS_v1: complete, reject or needs_review. needs_review ends nothing and
   leaves room for an appeal. Above 50 USDC a complete is held for review.
 - **Nothing is signed.** `record()` and `evaluatorCall()` return unsigned calls. Whoever holds the seat signs.
-- **Your key.** Jev is called with your own TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai),
-  directly at TypeSafe. The key is not stored and never appears in a receipt.
+- **Your key, or the free grades.** With your own TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai),
+  Jev is called directly at TypeSafe; the key is not stored and never appears in a receipt. Without one, `grade()`
+  claims one of your free grades on the coordination layer (`POST https://coord.taifoon.dev/v1/judge/compose`, 3 a day
+  per caller): the layer asks Jev the same four questions and this package composes the verdict from the answers, so the
+  receipt is the same shape (`via.connection: "trial"`, with the grades left). Past them the layer answers 402 with the
+  price of one grade (x402), or pass `layerKey` (a Taifoon key) to pay from its balance. `layer: false` turns this off.
 - **What the result is.** *Graded against a published rubric by a pinned decision model, with an appeal.* It is not
   "independently verified". An on-chain record is an attestation by whoever sent it, not a proof the answer is right.
 
@@ -211,4 +217,4 @@ In code: `verify(digest, { network: 'arbitrum' })` (a name or a chain id), `{ rp
 
 Independent project. Jev and TypeSafe are products of TypeSafe AI, Inc., which does not endorse this package.
 
-Built by Taifoon. MIT. Its runtime dependencies are Taifoon's own packages, @taifoon/jev-wilson (the pricing) and @taifoon/n8n-nodes-typesafe; nothing third-party. It contains no key. It calls Jev only with your own TypeSafe key.
+Built by Taifoon. MIT. Its runtime dependencies are Taifoon's own packages, @taifoon/jev-wilson (the pricing) and @taifoon/n8n-nodes-typesafe; nothing third-party. It contains no key. It calls Jev with your own TypeSafe key, or without one through your free grades on the Taifoon coordination layer.
