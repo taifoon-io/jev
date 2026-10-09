@@ -106,9 +106,9 @@ describe('grade() without a key: the free grades on the layer', () => {
   });
 
   it('with a TypeSafe key the layer is never called; with layer:false and no key there is no grade', async () => {
-    const f = vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('typesafe') ? { model: 'jev-1.13.0', answers: Object.fromEntries(CLEAN.map((a) => [a.id, a])) } : {}), { status: 200 })) as unknown as Mock;
+    const f = vi.fn(async (url: string) => new Response(JSON.stringify(new URL(url).host === 'api.typesafe.ai' ? { model: 'jev-1.13.0', answers: Object.fromEntries(CLEAN.map((a) => [a.id, a])) } : {}), { status: 200 })) as unknown as Mock;
     await grade({ subject: 's', evidence: 'x', key: 'ts_key', fetch: f as unknown as typeof fetch });
-    expect(f.mock.calls.every(([u]) => u.startsWith('https://api.typesafe.ai'))).toBe(true);
+    expect(f.mock.calls.every(([u]) => new URL(u).host === 'api.typesafe.ai')).toBe(true);
     await expect(grade({ subject: 's', evidence: 'x', layer: false })).rejects.toThrow(/TypeSafe key/);
   });
 
