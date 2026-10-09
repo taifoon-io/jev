@@ -60,12 +60,69 @@ describe('grade()', () => {
     expect(r.verdict).toBe('needs_review');
     expect(r.reasons.at(-1)).toMatch(/above the auto-complete cap/);
   });
-  it('asks nothing without a key, and there is no other door; a custom rubric composes with its own rule', async () => {
-    await expect(grade({ subject: 's', evidence: 'x' })).rejects.toThrow(/TypeSafe key/);
+  it('a custom rubric composes with its own rule', async () => {
     const r = await grade({ subject: 's', evidence: 'x', rubric: { version: 'MY_v1', questions: [{ id: 'ok', text: 'Is it ok?', options: ['yes', 'no'] }], compose: (_f, a) => ({ verdict: a?.ok?.value === 'yes' ? 'complete' : 'reject', auto: true, forced: null, reasons: ['mine'], scores: { spec_met: null, unsupported_claim: null, scope_ok: null, cheat_shaped: null, ending: null, severity: null } }) },
       answers: [{ id: 'ok', value: 'yes', confidence: 0.9, probabilities: { yes: 0.9, no: 0.1 } }] });
     expect(r.rubric).toBe('MY_v1');
     expect(r.verdict).toBe('complete');
+  });
+});
+
+// _FREE_GRADES_v1_: no TypeSafe key of the caller's own → the caller's free grades on the coordination layer
+describe('grade() without a key: the free grades on the layer', () => {
+  const layerAnswer = (status = 200, left = 2) => vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify(status === 200
+    ? { ok: true, judge_called: true, model: 'jev-1.13.0', receipt: { answers: Object.fromEntries(CLEAN.map((a) => [a.id, a])) }, quota: { grades: { free: 3, left } } }
+    : { ok: false, code: 'payment_required', error: 'one Jev grade is 0.05 USDC with x402' }), { status })) as unknown as Mock;
+
+  it('claims a free grade: POST /v1/judge/compose with the evidence, the answers composed here, the receipt says trial and what is left', async () => {
+    const f = layerAnswer();
+    const r = await grade({ subject: 's', evidence: 'task: reply yes. reply: yes', fetch: f as unknown as typeof fetch });
+    expect(f).toHaveBeenCalledTimes(1);
+    const [url, init] = f.mock.calls[0]!;
+    expect(url).toBe('https://coord.taifoon.dev/v1/judge/compose');
+    expect(JSON.parse(String(init.body)).state).toContain('reply: yes');
+    expect((init.headers as Record<string, string>)['x-taifoon-client']).toBe('@taifoon/jev');
+    expect((init.headers as Record<string, string>)['x-api-key']).toBeUndefined();
+    expect(r.verdict).toBe('complete');
+    expect(r.model).toBe('jev-1.13.0');
+    expect(r.via).toMatchObject({ connection: 'trial', trial: { calls: 3, left: 2 } });
+  });
+
+  it('the same answers compose to the same decision as answers supplied by hand (one rubric, one receipt shape)', async () => {
+    const free = await grade({ subject: 's', evidence: 'x', at: 1, fetch: layerAnswer() as unknown as typeof fetch });
+    const supplied = await grade({ subject: 's', evidence: 'x', at: 1, answers: CLEAN.map((a) => ({ ...a, value: String(a.value) })), model: 'jev-1.13.0' });
+    expect(free.decision!.digest).toBe(supplied.decision!.digest);
+  });
+
+  it('past the free grades: a 402 that names the three ways on', async () => {
+    await expect(grade({ subject: 's', evidence: 'x', fetch: layerAnswer(402) as unknown as typeof fetch })).rejects.toMatchObject({ status: 402, message: expect.stringMatching(/TypeSafe key.*Taifoon key.*x402/) });
+  });
+
+  it('a Taifoon key pays past the free grades (sent as x-api-key); a layer URL can be named', async () => {
+    const f = layerAnswer();
+    await grade({ subject: 's', evidence: 'x', layerKey: 'tfr_test', layer: 'https://layer.example', fetch: f as unknown as typeof fetch });
+    expect(f.mock.calls[0]![0]).toBe('https://layer.example/v1/judge/compose');
+    expect((f.mock.calls[0]![1].headers as Record<string, string>)['x-api-key']).toBe('tfr_test');
+  });
+
+  it('with a TypeSafe key the layer is never called; with layer:false and no key there is no grade', async () => {
+    const f = vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('typesafe') ? { model: 'jev-1.13.0', answers: Object.fromEntries(CLEAN.map((a) => [a.id, a])) } : {}), { status: 200 })) as unknown as Mock;
+    await grade({ subject: 's', evidence: 'x', key: 'ts_key', fetch: f as unknown as typeof fetch });
+    expect(f.mock.calls.every(([u]) => u.startsWith('https://api.typesafe.ai'))).toBe(true);
+    await expect(grade({ subject: 's', evidence: 'x', layer: false })).rejects.toThrow(/TypeSafe key/);
+  });
+
+  it('a rubric that asks other questions than the layer answers needs a key of the caller', async () => {
+    const f = layerAnswer();
+    await expect(grade({ subject: 's', evidence: 'x', fetch: f as unknown as typeof fetch, rubric: { version: 'MY_v1', questions: [{ id: 'ok', text: 'Is it ok?', options: ['yes', 'no'] }] } })).rejects.toThrow(/also asks ok: pass \{ key \}/);
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it('a hard fail is still decided by the facts alone (the layer is not called)', async () => {
+    const f = layerAnswer();
+    const r = await grade({ subject: 's', evidence: 'x', facts: facts({ delivered: false }), fetch: f as unknown as typeof fetch });
+    expect(r.verdict).toBe('reject');
+    expect(f).not.toHaveBeenCalled();
   });
 });
 

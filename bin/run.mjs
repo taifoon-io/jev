@@ -1,5 +1,5 @@
 // jev run — one job through the pipeline, one step at a time.
-//   jev run                              the first ready job on the coordination layer's queue (needs TYPESAFE_KEY)
+//   jev run                              the first ready job on the coordination layer's queue (your TYPESAFE_KEY, else the free grades)
 //   jev run --job 8453:81100             a job you name (chain:id; ids like bitagent:8453:7287 work too)
 //   jev run --evidence pack.json         your own pack, no layer at all: { subject, state, delivered?, checks?, priceUsdc? }
 //   jev run --job-file job.json          one agent job: { id, task, criteria[], delivered, source?, checks[] } (see examples/jobs/)
@@ -71,7 +71,7 @@ export async function run(argv) {
 
   const t = createTerm({ quiet: json });
   const rl = yes ? null : createInterface({ input: process.stdin, output: process.stdout });
-  t.info(`jev run · ${noLayer ? 'offline' : `layer ${layer ?? 'https://coord.taifoon.dev'}`} · grade on ${demo ? `Jev's recorded answers for ${rec.job.ref} (${rec.job.task})` : ansFile ? 'supplied answers' : process.env.TYPESAFE_KEY ? 'your TypeSafe key' : 'no key: set TYPESAFE_KEY, or try --demo'} · record → ${network === 'none' ? 'none (opt in with --record devnet|base|both)' : network}${process.env.TAIFOON_RELAYER_KEY ? ' + the layer' : ''}`);
+  t.info(`jev run · ${noLayer ? 'offline' : `layer ${layer ?? 'https://coord.taifoon.dev'}`} · grade on ${demo ? `Jev's recorded answers for ${rec.job.ref} (${rec.job.task})` : ansFile ? 'supplied answers' : process.env.TYPESAFE_KEY ? 'your TypeSafe key' : noLayer ? 'no key: set TYPESAFE_KEY, or try --demo' : 'your free grades on the layer (no TypeSafe key)'} · record → ${network === 'none' ? 'none (opt in with --record devnet|base|both)' : network}${process.env.TAIFOON_RELAYER_KEY ? ' + the layer' : ''}`);
 
   const trace = await pipeline({
     layer, job, network, protocol, priceUsdc: price ? Number(price) : undefined, sellerRecord: recM ? { k: Number(recM[1]), n: Number(recM[2]) } : undefined,
