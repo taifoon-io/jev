@@ -1,5 +1,5 @@
 {
   "about": "a copy of the attestation helper (packages/assurance/src/attest.ts); do not edit, re-vendor it with scripts/vendor-attest.mjs",
   "source": "packages/assurance/src/attest.ts",
-  "sha256": "6f471e9b111643072af5175d4493d048e4151654684dcfa01f9f06b7e0591f84"
+  "sha256": "4c317897e587b9efc8ab7f461a12fa9cfc705d007fe88448743f03ef13ce0482"
 }

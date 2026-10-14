@@ -45,27 +45,27 @@ export type AttestInput = {
   /** the job the step is about, on its own chain and contract */
   subject: { chainId: number; contract: string; jobId: string | number | bigint };
   /** the canonical body of the step; its keccak256 is the digest unless `digest` is given */
-  body?: unknown;
-  digest?: AttestHex;
+  body?: unknown | undefined;
+  digest?: AttestHex | undefined;
   /** 0..10000; default 10000 (a deterministic step) */
-  confidenceBps?: number;
+  confidenceBps?: number | undefined;
   /** ≤ 64 bytes, e.g. 'jev-1.13.0' or 'det:assurance-settle-v1' */
   model: string;
   /** ≤ 512 bytes; default urn:taifoon:<kind>:<digest> */
-  uri?: string;
+  uri?: string | undefined;
   /** a stamp is built when there is a verdict; mode 1 deterministic (default) · 2 calibrated */
-  verdict?: StampVerdict | null;
-  mode?: 1 | 2;
+  verdict?: StampVerdict | null | undefined;
+  mode?: 1 | 2 | undefined;
   /** Jev's answer record digests: adds JevAnswerLog.record */
-  answers?: { useCase: string; inputDigest: AttestHex; answersDigest: AttestHex; uri?: string };
+  answers?: { useCase: string; inputDigest: AttestHex; answersDigest: AttestHex; uri?: string | undefined } | undefined;
 };
 export type AttestOptions = {
   /** picks the default networks; default 'taifoon' */
-  profile?: AttestProfile;
+  profile?: AttestProfile | undefined;
   /** overrides the profile: chain ids, or 'none' to opt out of recording (the mark is still returned) */
-  networks?: readonly number[] | 'none';
+  networks?: readonly number[] | 'none' | undefined;
   /** extra or replacement contracts per chain (e.g. a fork's deploy, or a network the registry does not list) */
-  targets?: Readonly<Record<number, Partial<{ name: string; decisionLog: string | null; answerLog: string | null; stampRegistry: string | null }>>>;
+  targets?: Readonly<Record<number, Partial<{ name: string; decisionLog: string | null; answerLog: string | null; stampRegistry: string | null }>>> | undefined;
 };
 export type Attested = {
   mark: { kind: string; kindId: AttestHex; subject: AttestHex; stampSubject: AttestHex; digest: AttestHex; confidenceBps: number; verdict: StampVerdict | null; model: string; uri: string };
