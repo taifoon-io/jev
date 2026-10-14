@@ -106,7 +106,7 @@ the output says how to retry. Set `record` to `none` to grade without writing on
 
 ## `jev run` flags
 
-Safe by default: your own TypeSafe key only, nothing recorded, nothing signed or sent. A typo is refused, never guessed.
+Safe by default: nothing is signed or sent. The calls that record and stamp the grade come back unsigned (`--record none` turns them off). A typo is refused, never guessed.
 
 | Flag | Default | What it does |
 |---|---|---|
