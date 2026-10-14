@@ -56,7 +56,7 @@ TYPESAFE_KEY=… npx -y @taifoon/jev run --job-file job.json --yes
 
 ## 5. Optional, only if the user asks
 
-- `--record devnet|base|both` adds the unsigned calls that record the grade on chain. Recording is off by default.
+- The grade comes with the unsigned calls that record and stamp it on chain (the Taifoon devnet and mainnet by default; `--record devnet|base|both` picks others, `--record none` turns them off). Nothing is sent.
 - The evaluator call that ends the job is printed unsigned. Never sign or send a transaction for the user.
 - `--json` prints the whole trace for scripts.
 

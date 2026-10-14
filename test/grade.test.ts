@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { facts, grade, record, verify, evaluatorCall, RUBRIC_v1 } from '../src/index.js';
 import { encodeCall } from '../src/abi.js';
-import { ANSWER_LOG_RECORD } from '../src/record.js';
+import { ANSWER_LOG_RECORD, DECISION_LOG_RECORD, STAMP_VERDICT_OF } from '../src/record.js';
 import { keccakHex } from '../src/hash.js';
 
 import d88 from './fixtures/decision-exec88-1790493351706-abea2dbbfd.json' with { type: 'json' };
@@ -127,30 +127,42 @@ describe('grade() without a key: the free grades on the layer', () => {
 });
 
 describe('record()', () => {
-  it('devnet: two ready calls to the two logs; send() sends them in order', async () => {
+  it('on by default: the Taifoon devnet (both logs + the stamp registry) and the Taifoon mainnet, which has none yet (said, not faked)', async () => {
     const r = await grade({ subject: { chainId: 8453, ref: '0x' + '5b'.repeat(32) }, evidence: 'x', answers: CLEAN.map((a) => ({ ...a, value: String(a.value) })), model: 'jev-1.13.0', at: 1 });
     const sent: string[] = [];
     const out = await record(r, { send: async (c) => { sent.push(c.fn); return '0x' + String(sent.length).repeat(64); } });
     expect(out.status).toBe('sent');
-    expect(sent).toEqual(['JevAnswerLog.record', 'JevDecisionLog.record']);
+    expect(out.networks).toEqual([36927, 3692781]);
+    expect(sent).toEqual(['JevAnswerLog.record', 'JevDecisionLog.record', 'GradeStampRegistry.stamp']);
     expect(out.calls[0]!.to).toBe('0xD8c1d8188Fc8EE388792f6EB3B3dbd4f341Ba8e3');
     expect(out.calls[1]!.to).toBe('0x1D622511862DD7DEffB8fEeBc225E0FAdA1e9A05');
+    expect(out.calls[2]!.to).toBe('0xff5B4852AC7066D04FEd8de97bdA52401d03ad6E');
+    expect(out.missing.map((m) => `${m.contract}@${m.chainId}`)).toEqual(['JevAnswerLog@3692781', 'JevDecisionLog@3692781', 'GradeStampRegistry@3692781']);
     expect(r.answersRecord!.use_case).toBe('compose.answers');
     expect(out.calls[0]!.data).toBe(encodeCall(ANSWER_LOG_RECORD, [keccakHex('compose.answers'), r.subjectId, r.inputDigest, r.answersDigest!, r.decision!.digest, 'jev-1.13.0', `urn:jev:answers:${r.answersDigest}`]));
+    expect(out.calls[1]!.data).toBe(encodeCall(DECISION_LOG_RECORD, [r.subjectId, r.decision!.kindId, r.decision!.digest, r.decision!.confidenceBps, 'jev-1.13.0', `urn:jev:decision:${r.decision!.digest}`]));
+    // the stamp: the grade's verdict (complete → 1, calibrated mode 2) under GradeStampRegistry.subjectOf(8453, 0x0, ref)
+    expect(out.calls[2]!.data).toBe(encodeCall('stamp(bytes32,bytes32,uint8,uint8,string,string)', [out.digests.stampSubject, r.decision!.digest, STAMP_VERDICT_OF[r.verdict], 2, 'jev-1.13.0', `urn:jev:decision:${r.decision!.digest}`]));
     expect(keccakHex('compose.answers')).toBe('0xcd6a31d63f65b0332f996a3d27a906aaacec242f09275c40175debae88ecab84'); // the useCase topic of tx 0x9a38cf55…
   });
-  it('network is a flag: none · base (the Base logs since 0.1.1) · both', async () => {
+  it('network is a flag: none · devnet · base · both, or any chain ids; stamp:false leaves the stamp out', async () => {
     const r = await grade({ subject: 'b', evidence: 'x', answers: CLEAN.map((a) => ({ ...a, value: String(a.value) })) });
-    expect(await record(r, { network: 'none' })).toMatchObject({ status: 'none', calls: [] });
+    expect(await record(r, { network: 'none' })).toMatchObject({ status: 'none', calls: [], networks: [] });
+    const dev = await record(r, { network: 'devnet' });
+    expect(dev.status).toBe('ready');
+    expect(dev.calls.map((c) => c.fn)).toEqual(['JevAnswerLog.record', 'JevDecisionLog.record', 'GradeStampRegistry.stamp']);
     const base = await record(r, { network: 'base' });
-    expect(base.status).toBe('ready');
+    expect(base.status).toBe('partial');
     expect(base.calls.map((c) => `${c.chainId}:${c.to}`)).toEqual(['8453:0x8e9B9cE86a2d55c10318607b0c815B7B8C66254d', '8453:0x209490d6A0FFC5368A42b0c2208BDCda853f6a92']);
+    expect(base.missing.map((m) => m.why)).toEqual(['no GradeStampRegistry on Base (8453) in the address registry']);
+    expect((await record(r, { network: 'base', stamp: false })).status).toBe('ready');
     const both = await record(r, { network: 'both' });
-    expect(both.calls.map((c) => `${c.chainId}:${c.fn}`)).toEqual(['36927:JevAnswerLog.record', '36927:JevDecisionLog.record', '8453:JevAnswerLog.record', '8453:JevDecisionLog.record']);
-    expect(both.calls[0]!.data).toBe(both.calls[2]!.data);
+    expect(both.calls.map((c) => `${c.chainId}:${c.fn}`)).toEqual(['36927:JevAnswerLog.record', '36927:JevDecisionLog.record', '36927:GradeStampRegistry.stamp', '8453:JevAnswerLog.record', '8453:JevDecisionLog.record']);
+    expect(both.calls[0]!.data).toBe(both.calls[3]!.data);
+    expect((await record(r, { networks: [42161] })).calls.map((c) => c.to)).toEqual(['0x29fEEc116e0CAbbaf38e9EBF2BBf65d82D672104', '0x1aC6266b9926cB3E206D5dc0c9d1B7c873aa150a']);
     const send = vi.fn(async () => '0xtx');
     const sent = await record(r, { network: 'both', send });
-    expect(send).toHaveBeenCalledTimes(4);
+    expect(send).toHaveBeenCalledTimes(5);
     expect(sent.status).toBe('sent');
   });
 });
