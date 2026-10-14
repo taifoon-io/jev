@@ -17,7 +17,8 @@
 export { grade } from './grade.js';
 export { facts } from './facts.js';
 export { prepareJob, runCheck } from './job.js';
-export { record } from './record.js';
+export { record, STAMP_VERDICT_OF } from './record.js';
+export { attest, ATTEST_PROFILES, ATTEST_TARGETS, decisionSubjectOf, stampSubjectOf } from './attest.js';
 export { evaluatorCall } from './evaluator/index.js';
 export { verify } from './verify.js';
 export { JevChainError, type JevChainErrorCode } from './errors.js';
@@ -32,6 +33,7 @@ export type { GradeInput, Receipt } from './grade.js';
 export type { FactsInput, Check } from './facts.js';
 export type { JobSpec, JobCheck, PreparedJob } from './job.js';
 export type { Recorded, UnsignedCall, Network } from './record.js';
+export type { Attested, AttestInput, AttestOptions, AttestProfile, AttestMissing, AttestCall, StampVerdict } from './attest.js';
 export type { Verification, AnswerEvent, DecisionEvent, ChainStatus, VerifyOptions, VerifyNetwork } from './verify.js';
 export type { DecisionRecord, DecisionCheck } from './decision.js';
 export type { Protocol, Adapter, AdapterOpts, EvaluatorCall } from './evaluator/index.js';

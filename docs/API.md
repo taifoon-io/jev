@@ -6,7 +6,7 @@
 |---|---|---|
 | `grade({ subject, evidence, facts?, rubric?, key \| answers })` | Checks the facts first. If none fails, asks Jev the rubric, composes the verdict and returns the receipt. | Asks Jev once, or never on a hard fail |
 | `facts({ delivered, checks, priceUsdc? })` | Runs the checks your protocol supplies. A check is a value or an (async) function; one that throws counts as "could not be checked". | None |
-| `record(receipt, { network, send? })` | Returns the unsigned `JevAnswerLog.record` and `JevDecisionLog.record` calls. `network` is a flag: `none`, `devnet` (default), `base` or `both`. Pass `send` (your wallet) to send every call that has an address. | None unless you pass `send` |
+| `record(receipt, { network?, networks?, stamp?, send? })` | Returns the unsigned `JevAnswerLog.record`, `JevDecisionLog.record` and `GradeStampRegistry.stamp` calls. By default they aim at the Taifoon devnet 36927 and the Taifoon mainnet 3692781; `network` (`none`, `devnet`, `base`, `both`) or `networks` (any chain ids) choose others, `none` turns recording off. A contract a network does not have is listed in `missing`, with no call. Pass `send` (your wallet) to send the calls. | None unless you pass `send` |
 | `evaluatorCall(protocol, jobId, verdict, digest)` | Returns the one unsigned call that ends the job on that protocol. For `needs_review` it returns `null`. | None |
 | `prepareJob({ id, task, criteria, delivered, source?, checks? })` | Turns a job as the buyer laid it out into the evidence Jev reads and the checks code runs. | None |
 | `verify(receiptOrDigest)` | Recomputes every digest, re-composes the verdict and finds the `JevAnswered` and `Decided` events. | One devnet RPC read |

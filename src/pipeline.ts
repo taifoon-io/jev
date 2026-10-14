@@ -63,10 +63,12 @@ export type PipelineOpts = {
   answers?: Record<string, Answer> | Answer[];
   /** the model that produced supplied `answers` (e.g. "jev-1.13.0"); it is part of the decision digest */
   model?: string | null;
-  /** where record() points the calls; default devnet */
-  /** recording is opt-in: where record() points the calls and what the layer may record. Default none: the receipt and
-   *  its digests only (recomputable offline), no transaction. */
+  /** where record() points the calls and what the layer may record. Recording is ON by default (_ATTEST_BY_DEFAULT_v1_):
+   *  unsigned calls for the Taifoon devnet 36927 and the Taifoon mainnet 3692781 (a log a network lacks is listed as
+   *  missing); `none` turns it off (the receipt and its digests only, recomputable offline). */
   network?: Network;
+  /** any chain ids instead of `network` (e.g. [8453] for Base) */
+  networks?: readonly number[];
   /** X-API-Key for POST /v1/judge/answers/record; omitted: nothing is written to the layer */
   relayerKey?: string | null;
   /** the job's protocol for the evaluator call; omitted: guessed from the job id */
@@ -213,11 +215,11 @@ export async function pipeline(o: PipelineOpts = {}): Promise<Trace> {
 
   await step('record', async () => {
     if (!receipt.decision) return { skip: `nothing to record: ${receipt.reasons[0] ?? receipt.verdict} (the facts decided; Jev was not asked)` };
-    t.recorded = await record(receipt, { network: o.network ?? 'none' });
+    t.recorded = await record(receipt, { network: o.network, networks: o.networks });
     if (layer && o.relayerKey && receipt.answersRecord)
-      t.layerRecord = await getJson<LayerRecord>(f, `${layer}/v1/judge/answers/record`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': o.relayerKey }, body: JSON.stringify({ ...receipt.answersRecord, record: o.network ?? 'none' }) });
+      t.layerRecord = await getJson<LayerRecord>(f, `${layer}/v1/judge/answers/record`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': o.relayerKey }, body: JSON.stringify({ ...receipt.answersRecord, record: o.network ?? (o.networks ? (o.networks.includes(8453) ? (o.networks.includes(36927) ? 'both' : 'base') : o.networks.includes(36927) ? 'devnet' : 'none') : 'devnet') }) });
     const rec = (t.layerRecord as { recording?: { used?: unknown; held?: { message?: string } } } | null)?.recording;
-    return { status: t.recorded.status, recording: rec ? { used: rec.used ?? null, held: rec.held?.message ?? null } : null, calls: t.recorded.calls.map((c) => `${c.fn}@${c.chainId}${c.to ? '' : ' (no address)'}`), digests: t.recorded.digests, layer: t.layerRecord ?? (layer ? 'not written: pass a relayer key to record on the layer' : 'independent mode') };
+    return { status: t.recorded.status, recording: rec ? { used: rec.used ?? null, held: rec.held?.message ?? null } : null, calls: t.recorded.calls.map((c) => `${c.fn}@${c.chainId}`), missing: t.recorded.missing.map((m) => `${m.contract}@${m.chainId}`), digests: t.recorded.digests, layer: t.layerRecord ?? (layer ? 'not written: pass a relayer key to record on the layer' : 'independent mode') };
   });
 
   await step('evaluator', async () => {

@@ -15,7 +15,8 @@ describe('jev (no network)', () => {
     const r = run('run', '--demo', '--yes');
     expect(r.code).toBe(0);
     expect(r.out).toMatch(/same decision digest as the one recorded on chain/);
-    expect(r.out).toMatch(/not recorded \(opt in with --record\)/);          // recording is opt-in
+    expect(r.out).toMatch(/record → Taifoon devnet \+ mainnet/);          // recording is on by default
+    expect(run('run', '--demo', '--yes', '--record', 'none').out).toMatch(/not recorded \(--record none\)/);
   });
   it('--demo --json prints one JSON trace', () => {
     const r = run('run', '--demo', '--json');

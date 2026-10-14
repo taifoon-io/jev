@@ -16,7 +16,7 @@ npx @taifoon/jev run --demo
 
 Then grade your own: with no key, on your free grades on the Taifoon coordination layer (3 a day per caller), or with
 your TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai). Installing it also
-installs Taifoon's other packages (@taifoon/jev-wilson, @taifoon/n8n-nodes-typesafe). No key inside, and it signs nothing. Recording a grade on chain is optional.
+installs Taifoon's other packages (@taifoon/jev-wilson, @taifoon/n8n-nodes-typesafe). No key inside, and it signs nothing. Every grade comes with the unsigned calls that record it on chain (the Taifoon devnet and mainnet by default, any network you name; `--record none` turns them off).
 
 ## Quick start
 
@@ -115,7 +115,7 @@ Safe by default: your own TypeSafe key only, nothing recorded, nothing signed or
 | `--job-file job.json` | | Grade a job you describe (see `examples/jobs/`) |
 | `--evidence pack.json` | | Grade your own evidence pack, no layer |
 | `--answers answers.json` | | Answers you already have (e.g. from the n8n node); Jev is not asked |
-| `--record none\|devnet\|base\|both` | `none` | Opt in to the unsigned calls that record the grade on chain |
+| `--record none\|devnet\|base\|both` | Taifoon devnet + mainnet | Where the unsigned calls that record and stamp the grade point; `none` turns them off |
 | `--layer <https url>` / `--no-layer` | `https://coord.taifoon.dev` | Where jobs and quotes are read |
 | `--protocol <name>` | from the job id | Evaluator seat: `virtuals-erc8183`, `virtuals-memo-acp`, `bitagent-erc8183`, `assurance-hook`, `judge-adapter` |
 | `--price-usdc <n>` | the job's budget | Price for the premium quote |

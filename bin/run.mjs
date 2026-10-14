@@ -6,7 +6,8 @@
 //   jev run --demo                       offline, no key: replays a REAL graded job (BitAgent 7287 on Base) with Jev's
 //                                        recorded answers, and checks the result against the decision on chain
 //   jev run --answers answers.json       answers you already have (the n8n TypeSafe node's output): Jev is not asked
-//   --record none|devnet|base|both       opt-in: where the grade is recorded (default none: the receipt and digests only);
+//   --record none|devnet|base|both       where the grade is recorded (default: unsigned calls for the Taifoon devnet and
+//                                        mainnet; none = the receipt and digests only);
 //                                        --network is the same flag
 //   --layer <url> | --no-layer           the coordination layer (default https://coord.taifoon.dev)
 //   --yes                                run every step without asking;  --json  print the whole trace as JSON at the end
@@ -27,7 +28,7 @@ function factOf(r) {
     case 'evidence': return `${o.facts} labelled facts · ${o.gaps?.length ?? 0} gaps · ${o.state_chars} characters for Jev to read`;
     case 'facts': return `delivered ${o.delivered ? 'yes' : 'no'} · checks ${o.checksOk === false ? 'failed' : o.checksOk ? 'ok' : 'none'}${o.priceUsdc != null ? ` · ${o.priceUsdc} USDC` : ''}`;
     case 'grade': return `${o.verdict} · ${o.reasons?.[0] ?? ''}${o.model ? ` · ${o.model}` : ''}`;
-    case 'record': return `${o.status === 'none' ? 'not recorded (opt in with --record)' : `${o.status} · ${(o.calls ?? []).join(', ')}`}${o.recording?.held ? ` · layer held it: ${o.recording.held}` : ''}${typeof o.layer === 'object' && o.layer ? ` · layer ${short(o.layer.digest)}` : ''}`;
+    case 'record': return `${o.status === 'none' ? 'not recorded (--record none)' : `${o.status} · ${(o.calls ?? []).join(', ')}`}${o.recording?.held ? ` · layer held it: ${o.recording.held}` : ''}${typeof o.layer === 'object' && o.layer ? ` · layer ${short(o.layer.digest)}` : ''}`;
     case 'evaluator': return `${o.fn} on ${o.protocol} · signed by ${o.signer}`;
     case 'premium': return `${o.guaranteed ? 'guaranteed' : 'not guaranteed'} · premium ${o.premium_label ?? o.premium_ratio}`;
     case 'verify': return o.ok ? `the receipt re-derives · ${Object.keys(o.checks ?? {}).length} checks` : `problems: ${(o.problems ?? []).join('; ')}`;
@@ -55,10 +56,10 @@ export async function run(argv) {
   const jobFile = file('--job-file');
   const ansFile = file('--answers');
   const rec = demo ? JSON.parse(readFileSync(new URL('../examples/jobs/base-bitagent-7287.recorded.json', import.meta.url), 'utf8')) : null;
-  const network = val('--record') ?? val('--network') ?? 'none'; const layer = noLayer ? false : val('--layer');
+  const network = val('--record') ?? val('--network') ?? undefined; const layer = noLayer ? false : val('--layer');
   const protocol = val('--protocol'); const price = val('--price-usdc'); const sellerRec = val('--seller-record');
   if (a.length) refuse(`unknown flag ${a[0]}`);
-  if (!['none', 'devnet', 'base', 'both'].includes(network)) refuse(`--record is none, devnet, base or both (got ${network})`);
+  if (network !== undefined && !['none', 'devnet', 'base', 'both'].includes(network)) refuse(`--record is none, devnet, base or both (got ${network})`);
   if (demo && (job || evFile || jobFile || ansFile)) refuse('--demo replays one recorded job: drop --job, --job-file, --evidence and --answers');
   if ([job, evFile, jobFile].filter(Boolean).length > 1) refuse('pick one source: --job, --job-file or --evidence');
   if (job && !/^\d+:.+$/.test(job) && !/^\S+$/.test(job)) refuse(`--job is <chain>:<id>, e.g. 8453:bitagent:8453:7287 (got ${job})`);
@@ -71,7 +72,7 @@ export async function run(argv) {
 
   const t = createTerm({ quiet: json });
   const rl = yes ? null : createInterface({ input: process.stdin, output: process.stdout });
-  t.info(`jev run · ${noLayer ? 'offline' : `layer ${layer ?? 'https://coord.taifoon.dev'}`} · grade on ${demo ? `Jev's recorded answers for ${rec.job.ref} (${rec.job.task})` : ansFile ? 'supplied answers' : process.env.TYPESAFE_KEY ? 'your TypeSafe key' : noLayer ? 'no key: set TYPESAFE_KEY, or try --demo' : 'your free grades on the layer (no TypeSafe key)'} · record → ${network === 'none' ? 'none (opt in with --record devnet|base|both)' : network}${process.env.TAIFOON_RELAYER_KEY ? ' + the layer' : ''}`);
+  t.info(`jev run · ${noLayer ? 'offline' : `layer ${layer ?? 'https://coord.taifoon.dev'}`} · grade on ${demo ? `Jev's recorded answers for ${rec.job.ref} (${rec.job.task})` : ansFile ? 'supplied answers' : process.env.TYPESAFE_KEY ? 'your TypeSafe key' : noLayer ? 'no key: set TYPESAFE_KEY, or try --demo' : 'your free grades on the layer (no TypeSafe key)'} · record → ${network === undefined ? 'Taifoon devnet + mainnet (unsigned calls; --record none turns it off)' : network}${process.env.TAIFOON_RELAYER_KEY ? ' + the layer' : ''}`);
 
   const trace = await pipeline({
     layer, job, network, protocol, priceUsdc: price ? Number(price) : undefined, sellerRecord: recM ? { k: Number(recM[1]), n: Number(recM[2]) } : undefined,
