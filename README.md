@@ -171,7 +171,9 @@ Each is tested against calldata a mined transaction carried.
 - [On chain: contract addresses on Base and devnet, and one grade end to end](docs/ON_CHAIN.md)
 - [The records: receipt, decision.v2, jev.answer.v1](docs/RECORDS.md)
 - [n8n workflows, and the TypeSafe node's Jev Options](docs/WORKFLOWS.md)
+- [The coordination layer from the outside, through MCP: connect, the verified tool sequence for a seller, budgets](docs/MCP-QUICKSTART.md)
 - [Develop](docs/DEVELOP.md)
+- [Contributing](CONTRIBUTING.md)
 
 ```
 npx @taifoon/jev verify <digest> --network base
