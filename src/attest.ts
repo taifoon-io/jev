@@ -23,10 +23,10 @@
 export const ATTEST_TARGETS: Readonly<Record<number, { name: string; decisionLog: string | null; answerLog: string | null; stampRegistry: string | null }>> = {
   143: { name: 'Monad', decisionLog: '0x1aC6266b9926cB3E206D5dc0c9d1B7c873aa150a', answerLog: '0x29fEEc116e0CAbbaf38e9EBF2BBf65d82D672104', stampRegistry: null },
   5042: { name: 'Arc', decisionLog: '0x863db7dAc69CC614a98822082cbe884F1f3b55cA', answerLog: '0x45214361A8cADb8aEe6302cd5653E119E5a89839', stampRegistry: null },
-  8453: { name: 'Base', decisionLog: '0x209490d6A0FFC5368A42b0c2208BDCda853f6a92', answerLog: '0x8e9B9cE86a2d55c10318607b0c815B7B8C66254d', stampRegistry: null },
+  8453: { name: 'Base', decisionLog: '0x209490d6A0FFC5368A42b0c2208BDCda853f6a92', answerLog: '0xC08dfc61d702AEA45d1EF2515d8BDA36d548C75c', stampRegistry: null },
   36927: { name: 'Taifoon devnet', decisionLog: '0x1D622511862DD7DEffB8fEeBc225E0FAdA1e9A05', answerLog: '0xD8c1d8188Fc8EE388792f6EB3B3dbd4f341Ba8e3', stampRegistry: '0xff5B4852AC7066D04FEd8de97bdA52401d03ad6E' },
   42161: { name: 'Arbitrum One', decisionLog: '0x1aC6266b9926cB3E206D5dc0c9d1B7c873aa150a', answerLog: '0x29fEEc116e0CAbbaf38e9EBF2BBf65d82D672104', stampRegistry: null },
-  3692781: { name: 'Taifoon mainnet', decisionLog: null, answerLog: null, stampRegistry: null },
+  3692781: { name: 'Taifoon mainnet', decisionLog: '0xaEbF9084Bb32eB2E0F58537526A8877dd1436b23', answerLog: '0xC08dfc61d702AEA45d1EF2515d8BDA36d548C75c', stampRegistry: null },
 };
 // ── END GENERATED ──
 
@@ -196,7 +196,9 @@ export function attest(input: AttestInput, opts: AttestOptions = {}): Attested {
   const networks = [...(opts.networks ?? ATTEST_PROFILES[opts.profile ?? 'taifoon'])];
   const calls: AttestCall[] = []; const missing: AttestMissing[] = [];
   for (const chainId of networks) {
-    const t = { name: `chain ${chainId}`, decisionLog: null, answerLog: null, stampRegistry: null, ...ATTEST_TARGETS[chainId], ...opts.targets?.[chainId] };
+    // the defaults as their own value: written inline before a spread of a fully typed target, tsc refuses them (TS2783)
+    const unknownChain: (typeof ATTEST_TARGETS)[number] = { name: `chain ${chainId}`, decisionLog: null, answerLog: null, stampRegistry: null };
+    const t = { ...unknownChain, ...ATTEST_TARGETS[chainId], ...opts.targets?.[chainId] };
     const gap = (contract: AttestMissing['contract']) => missing.push({ chainId, network: t.name, contract, why: `no ${contract} on ${t.name} (${chainId}) in the address registry` });
     // the answers first, then the decision that cites them (the order the layer's recorder sends)
     if (input.answers) {

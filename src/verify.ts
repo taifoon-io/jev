@@ -32,6 +32,22 @@ type Rpc = string | readonly string[];
 async function logs(rpc: Rpc, f: typeof fetch, address: string, topics: Array<string | null>, fromBlock: number, toBlock?: number, chainId?: number): Promise<Log[]> {
   return (await rpcCall<Log[]>(rpc, f, 'eth_getLogs', [{ address, topics, fromBlock: hexN(fromBlock), toBlock: toBlock == null ? 'latest' : hexN(toBlock) }], { chainId })) ?? [];
 }
+/**
+ * _LOGS_AT_TRUSTED_v1_: the rows of the one block JevAnswerLog.recordedAt named. That block holds a trusted record, so an
+ * empty answer is the endpoint's (one that serves only recent logs answers [] for an older block instead of an error:
+ * base.rpc.blxrbdn.com, first in Base's rotation, did for a 1.35M-block-old record on 2026-10-29) and the next endpoint
+ * is asked. [] only when every endpoint that answered said so; no answer at all is rpc_unavailable, as before.
+ */
+async function logsAtRecorded(rpc: Rpc, f: typeof fetch, address: string, topics: Array<string | null>, block: number, chainId?: number): Promise<Log[]> {
+  const urls = typeof rpc === 'string' ? [rpc] : rpc;
+  let answered = false; let last: unknown = null;
+  for (const u of urls) {
+    try { const l = await logs(u, f, address, topics, block, block, chainId); answered = true; if (l.length) return l; }
+    catch (e) { if (e instanceof JevChainError && e.code !== 'rpc_unavailable') throw e; last = e; }
+  }
+  if (!answered && last) throw last;
+  return [];
+}
 const SEL_RECORDED_AT = keccakHex('recordedAt(bytes32)').slice(0, 10);
 /** JevAnswerLog.recordedAt(digest): the block of the first trusted record, 0 when none. */
 async function recordedAt(rpc: Rpc, f: typeof fetch, address: string, digest: Hex, chainId?: number): Promise<number> {
@@ -101,7 +117,8 @@ export async function verify(x: Receipt | string, opts: VerifyOptions = {}): Pro
   const chainId = chainIdOf(opts.network ?? 'devnet');
   const f = opts.fetch ?? fetch;
   const dev = { chainId, ...(jevLogsOn(chainId) ?? { answerLog: null, decisionLog: null }) } as
-    { chainId: number; answerLog: { address: string; fromBlock: number } | null; decisionLog: { address: string; fromBlock: number } | null };
+    { chainId: number; answerLog: { address: string; fromBlock: number } | null; decisionLog: { address: string; fromBlock: number } | null;
+      earlierAnswerLogs?: readonly { address: string; fromBlock: number }[] };
   const checks: Record<string, boolean> = {}; const problems: string[] = [];
   const onChain: Verification['onChain'] = { chainId: dev.chainId, answers: [], decisions: [], status: 'skipped' };
   let answersDigest: Hex | null; let subjectId: Hex | null = null; let decision: Hex | null = null;
@@ -137,8 +154,11 @@ export async function verify(x: Receipt | string, opts: VerifyOptions = {}): Pro
         const given = typeof opts.rpc === 'string' ? opts.rpc.split(',').map((u) => u.trim()).filter(Boolean) : opts.rpc;
         const rpc: Rpc = given?.length ? given : await rpcRotation(chainId, f);
         if (chainId !== DEVNET) {
-          const at = await recordedAt(rpc, f, dev.answerLog.address, answersDigest, chainId);
-          if (at > 0) onChain.answers = (await logs(rpc, f, dev.answerLog.address, [TOPIC_ANSWERED, null, null, answersDigest], at, at, chainId)).map(answerEvent);
+          // _JEV_SEATS_v1_: the answer log records go to (JevAnswerLogV2 where live), then the earlier ones still read (Base: the first log)
+          for (const log of [dev.answerLog, ...(dev.earlierAnswerLogs ?? [])]) {
+            const at = await recordedAt(rpc, f, log.address, answersDigest, chainId);
+            if (at > 0) { onChain.answers = (await logsAtRecorded(rpc, f, log.address, [TOPIC_ANSWERED, null, null, answersDigest], at, chainId)).map(answerEvent); break; }
+          }
         } else onChain.answers = (await logs(rpc, f, dev.answerLog.address, [TOPIC_ANSWERED, null, null, answersDigest], dev.answerLog.fromBlock, undefined, chainId)).map(answerEvent);
         // a bare digest: the answer row names its subject and decision, so the decision row can be found too
         const first = onChain.answers[0];

@@ -127,17 +127,19 @@ describe('grade() without a key: the free grades on the layer', () => {
 });
 
 describe('record()', () => {
-  it('on by default: the Taifoon devnet (both logs + the stamp registry) and the Taifoon mainnet, which has none yet (said, not faked)', async () => {
+  it('on by default: the Taifoon devnet (both logs + the stamp registry) and the Taifoon mainnet, the record home of Jev (both logs; no stamp registry there, said, not faked)', async () => {
     const r = await grade({ subject: { chainId: 8453, ref: '0x' + '5b'.repeat(32) }, evidence: 'x', answers: CLEAN.map((a) => ({ ...a, value: String(a.value) })), model: 'jev-1.13.0', at: 1 });
     const sent: string[] = [];
     const out = await record(r, { send: async (c) => { sent.push(c.fn); return '0x' + String(sent.length).repeat(64); } });
     expect(out.status).toBe('sent');
     expect(out.networks).toEqual([36927, 3692781]);
-    expect(sent).toEqual(['JevAnswerLog.record', 'JevDecisionLog.record', 'GradeStampRegistry.stamp']);
+    expect(sent).toEqual(['JevAnswerLog.record', 'JevDecisionLog.record', 'GradeStampRegistry.stamp', 'JevAnswerLog.record', 'JevDecisionLog.record']);
     expect(out.calls[0]!.to).toBe('0xD8c1d8188Fc8EE388792f6EB3B3dbd4f341Ba8e3');
     expect(out.calls[1]!.to).toBe('0x1D622511862DD7DEffB8fEeBc225E0FAdA1e9A05');
     expect(out.calls[2]!.to).toBe('0xff5B4852AC7066D04FEd8de97bdA52401d03ad6E');
-    expect(out.missing.map((m) => `${m.contract}@${m.chainId}`)).toEqual(['JevAnswerLog@3692781', 'JevDecisionLog@3692781', 'GradeStampRegistry@3692781']);
+    expect(out.calls.slice(3).map((c) => `${c.chainId}:${c.to}`)).toEqual(['3692781:0xC08dfc61d702AEA45d1EF2515d8BDA36d548C75c', '3692781:0xaEbF9084Bb32eB2E0F58537526A8877dd1436b23']);
+    expect(out.calls[3]!.data).toBe(out.calls[0]!.data);
+    expect(out.missing.map((m) => `${m.contract}@${m.chainId}`)).toEqual(['GradeStampRegistry@3692781']);
     expect(r.answersRecord!.use_case).toBe('compose.answers');
     expect(out.calls[0]!.data).toBe(encodeCall(ANSWER_LOG_RECORD, [keccakHex('compose.answers'), r.subjectId, r.inputDigest, r.answersDigest!, r.decision!.digest, 'jev-1.13.0', `urn:jev:answers:${r.answersDigest}`]));
     expect(out.calls[1]!.data).toBe(encodeCall(DECISION_LOG_RECORD, [r.subjectId, r.decision!.kindId, r.decision!.digest, r.decision!.confidenceBps, 'jev-1.13.0', `urn:jev:decision:${r.decision!.digest}`]));
@@ -153,7 +155,7 @@ describe('record()', () => {
     expect(dev.calls.map((c) => c.fn)).toEqual(['JevAnswerLog.record', 'JevDecisionLog.record', 'GradeStampRegistry.stamp']);
     const base = await record(r, { network: 'base' });
     expect(base.status).toBe('partial');
-    expect(base.calls.map((c) => `${c.chainId}:${c.to}`)).toEqual(['8453:0x8e9B9cE86a2d55c10318607b0c815B7B8C66254d', '8453:0x209490d6A0FFC5368A42b0c2208BDCda853f6a92']);
+    expect(base.calls.map((c) => `${c.chainId}:${c.to}`)).toEqual(['8453:0xC08dfc61d702AEA45d1EF2515d8BDA36d548C75c', '8453:0x209490d6A0FFC5368A42b0c2208BDCda853f6a92']);
     expect(base.missing.map((m) => m.why)).toEqual(['no GradeStampRegistry on Base (8453) in the address registry']);
     expect((await record(r, { network: 'base', stamp: false })).status).toBe('ready');
     const both = await record(r, { network: 'both' });
@@ -168,7 +170,7 @@ describe('record()', () => {
 });
 
 describe('verify()', () => {
-  it('on Base the answer row is found through recordedAt, then that one block', async () => {
+  it('on Base the answer row is found through recordedAt in JevAnswerLogV2 first, then that one block', async () => {
     const digest = '0x6c7e6d2977689f1c9639a377b165f998d1160cc30eca8ff4f1fedc793db2f52d';
     type RpcBody = { method: string; params: Array<{ to?: string; data?: string; address?: string; fromBlock?: string; toBlock?: string }> };
     const calls: RpcBody[] = [];
@@ -180,9 +182,9 @@ describe('verify()', () => {
     });
     const v = await verify(digest, { fetch: f as never, network: 'base' });
     expect(v.onChain.chainId).toBe(8453);
-    expect(calls[0]!.params[0]!.to).toBe('0x8e9B9cE86a2d55c10318607b0c815B7B8C66254d');
+    expect(calls[0]!.params[0]!.to).toBe('0xC08dfc61d702AEA45d1EF2515d8BDA36d548C75c');
     expect(calls[0]!.params[0]!.data).toBe('0x' + keccakHex('recordedAt(bytes32)').slice(2, 10) + digest.slice(2));
-    expect(calls[1]!.params[0]!).toMatchObject({ address: '0x8e9B9cE86a2d55c10318607b0c815B7B8C66254d', fromBlock: '0x' + (51_900_000).toString(16), toBlock: '0x' + (51_900_000).toString(16) });
+    expect(calls[1]!.params[0]!).toMatchObject({ address: '0xC08dfc61d702AEA45d1EF2515d8BDA36d548C75c', fromBlock: '0x' + (51_900_000).toString(16), toBlock: '0x' + (51_900_000).toString(16) });
   });
   it('a bare answers digest finds its JevAnswered log (execution 86, tx 0x9a38cf55…)', async () => {
     const f = vi.fn(async (...args: unknown[]) => new Response(JSON.stringify(String((args[1] as RequestInit | undefined)?.body).includes('0x1D622511862DD7DEffB8fEeBc225E0FAdA1e9A05') ? decided86 : logs86)));

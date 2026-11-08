@@ -50,7 +50,7 @@ describe('pipeline() on the coordination layer', () => {
     const t = await pipeline({ fetch: f, key: 'apikey_x', job: '8453:bitagent:8453:7287', relayerKey: 'test-key' });
     const post = seen.find((s) => s.url.endsWith('/v1/judge/answers/record'))!;
     expect(JSON.parse(String(post.init!.body)).record).toBe('devnet');
-    expect(t.steps.find((s) => s.id === 'record')!.out).toMatchObject({ status: 'partial', missing: ['JevAnswerLog@3692781', 'JevDecisionLog@3692781', 'GradeStampRegistry@3692781'], recording: { used: 'none', held: 'Base budget spent for today' } });
+    expect(t.steps.find((s) => s.id === 'record')!.out).toMatchObject({ status: 'partial', missing: ['GradeStampRegistry@3692781'], recording: { used: 'none', held: 'Base budget spent for today' } });
   });
 
   it('with a relayer key, POSTs the jev.answer.v1 record to /v1/judge/answers/record with X-API-Key', async () => {
@@ -94,9 +94,9 @@ describe('pipeline() independent of the layer', () => {
     expect(f).not.toHaveBeenCalled();
     expect(t.receipt!.verdict).toBe('complete');
     expect(t.steps.find((s) => s.id === 'premium')!.skipped).toMatch(/offline/);
-    // recording is on by default: unsigned calls for the devnet (nothing is sent), the mainnet's missing logs said
+    // recording is on by default: unsigned calls for the devnet and the Taifoon mainnet (nothing is sent), the missing stamp registry said
     expect(t.recorded!.status).toBe('partial');
-    expect(t.recorded!.calls.map((c) => `${c.fn}@${c.chainId}`)).toEqual(['JevAnswerLog.record@36927', 'JevDecisionLog.record@36927', 'GradeStampRegistry.stamp@36927']);
+    expect(t.recorded!.calls.map((c) => `${c.fn}@${c.chainId}`)).toEqual(['JevAnswerLog.record@36927', 'JevDecisionLog.record@36927', 'GradeStampRegistry.stamp@36927', 'JevAnswerLog.record@3692781', 'JevDecisionLog.record@3692781']);
     const off = await pipeline({ layer: false, fetch: f, network: 'none', evidence: { subject: 'my-protocol:job-7', state: 'task: summarise X\ndelivered: a summary of X', checks: { schema_ok: true } }, answers: CLEAN.map(({ id, value, confidence, probabilities }) => ({ id, value, confidence, probabilities })) });
     expect(off.recorded!.status).toBe('none'); expect(off.recorded!.calls).toEqual([]);
     expect(t.recorded!.digests.answers).toMatch(/^0x[0-9a-f]{64}$/);

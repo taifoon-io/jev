@@ -1,24 +1,83 @@
-# @taifoon/jev
+<p align="center">
+  <img src="https://raw.githubusercontent.com/taifoon-io/jev/main/assets/banner.svg" alt="Jev for agent jobs" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@taifoon/jev"><img src="https://img.shields.io/npm/v/@taifoon/jev?style=flat-square&labelColor=000000&color=3DA5FF&label=npm" alt="npm"></a>
+  <a href="https://www.npmjs.com/package/@taifoon/jev#provenance"><img src="https://img.shields.io/badge/provenance-signed-00B5B8?style=flat-square&labelColor=000000" alt="provenance"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/npm/l/@taifoon/jev?style=flat-square&labelColor=000000&color=E6F0F7" alt="licence"></a>
+  <a href="https://www.npmjs.com/package/@taifoon/jev"><img src="https://img.shields.io/npm/dm/@taifoon/jev?style=flat-square&labelColor=000000&color=3DA5FF" alt="downloads"></a>
+</p>
 
 **Did the AI agent do the work it was paid for? Ask Jev, and get an answer you can check.**
 
-- **What:** a grader for agent jobs. Code checks the facts, TypeSafe's Jev answers four closed questions about the
-  delivery, and code turns the answers into complete, reject or needs review, with a receipt anyone can recompute.
-- **Why:** agents are paid on chain for work nobody reads. A grade with its full probabilities, a published rubric and
-  an appeal path is something a buyer, a seller and a contract can all rely on.
-- **How:** replay a Base job, graded by Jev, offline and with no key:
+Code checks the facts of the delivery, TypeSafe's Jev answers four closed questions about it, and code turns the answers
+into **complete**, **reject** or **needs review**, with a receipt anyone can recompute, the unsigned calls that record it on
+chain and the one call that ends the job on its protocol (ERC-8183, Virtuals ACP, BitAgent). No key inside, and it signs
+nothing.
 
-```
+## 30 seconds
+
+```sh
 npx @taifoon/jev run --demo
 ```
 
+Offline, no key: replays BitAgent job 7287 on Base as Jev graded it, composes **reject**, and arrives at the decision
+digest that is anchored on chain. Then read a recorded grade back from Base:
+
+```sh
+npx @taifoon/jev verify decision-1790522234088-10691d5017 --network base
+```
+
+It recomputes the record's digests offline and finds both rows on Base (`"status": "recorded"`).
+
 ![npx @taifoon/jev run --demo: a BitAgent job on Base, graded by Jev, checked against the chain](https://raw.githubusercontent.com/taifoon-io/jev/main/docs/demo.gif)
 
-Then grade your own: with no key, on your free grades on the Taifoon coordination layer (3 a day per caller), or with
-your TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai). Installing it also
-installs Taifoon's other packages (@taifoon/jev-wilson, @taifoon/n8n-nodes-typesafe). No key inside, and it signs nothing. Every grade comes with the unsigned calls that record it on chain (the Taifoon devnet and mainnet by default, any network you name; `--record none` turns them off).
+## What you get
 
-## Quick start
+| | |
+|---|---|
+| **A verdict with its reasons** | complete, reject or needs review, with every answer's full probability distribution |
+| **A receipt anyone can recompute** | digests of the evidence, the answers and the decision; `verify()` recomputes them offline |
+| **The on-chain record, unsigned** | `JevAnswerLog.record`, `JevDecisionLog.record` and `GradeStampRegistry.stamp` calls for your wallet |
+| **The call that ends the job** | the evaluator call for `assurance-hook`, `judge-adapter`, `virtuals-erc8183`, `virtuals-memo-acp`, `bitagent-erc8183` |
+| **A cover price for the next job** | the seller's premium from its record, through [`@taifoon/jev-wilson`](https://www.npmjs.com/package/@taifoon/jev-wilson) |
+| **No key needed to start** | 3 free grades a day per caller on the Taifoon coordination layer, or your own TypeSafe key |
+
+## How it works
+
+```
+the job as the buyer wrote it (task, criteria, source, delivered)
+        │ prepareJob()
+        ▼
+code checks the facts ─── a check fails ──▶ reject (Jev is not asked)
+        │ all pass
+        ▼
+Jev answers RUBRIC_v1: spec_met · unsupported_claim · ending · cheat_shaped
+        │ grade()
+        ▼
+code composes THRESHOLDS_v1 ──▶ complete | reject | needs_review + receipt
+        │ record() · evaluatorCall()
+        ▼
+unsigned calls: the answer log, the decision log, the evaluator seat (you sign)
+        │ verify()
+        ▼
+digests recomputed, rows found on chain
+```
+
+## Install
+
+```sh
+npm i @taifoon/jev
+```
+
+Node.js 20 or later. Installing it also installs Taifoon's other packages (@taifoon/jev-wilson,
+@taifoon/n8n-nodes-typesafe); nothing third-party. Grade with no key on your free grades on the Taifoon coordination layer
+(3 a day per caller), or with your TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai). Every grade comes
+with the unsigned calls that record it on chain (the Taifoon devnet and mainnet by default, any network you name;
+`--record none` turns them off).
+
+## Grade your own job
 
 An agent was hired for a job. The grader answers one question: did it do the work as the task laid it out? You give
 it the job the way the buyer wrote it, and it does the rest:
@@ -182,8 +241,30 @@ npx @taifoon/jev workflows export ./jev-workflows
 ## Chains
 
 `verify` reads the Jev logs on every chain they are deployed to: the Taifoon devnet (36927), Base (8453), Arbitrum One
-(42161), Arc (5042) and Monad (143). Robinhood Chain (4663), Taifoon mainnet (3692781) and Ethereum (1) are known
-chains with no Jev log yet; `verify` says so instead of reading them.
+(42161), Arc (5042) and Monad (143). Robinhood Chain (4663) and Ethereum (1) are known chains with no Jev log; `verify`
+says so instead of reading them.
+
+### Where Jev's records live
+
+| Chain | JevDecisionLog | JevAnswerLog |
+|---|---|---|
+| Taifoon mainnet (3692781), the record home | `0xaEbF9084Bb32eB2E0F58537526A8877dd1436b23` | `0xC08dfc61d702AEA45d1EF2515d8BDA36d548C75c` (JevAnswerLogV2) |
+| Base (8453) | [`0x209490d6A0FFC5368A42b0c2208BDCda853f6a92`](https://basescan.org/address/0x209490d6A0FFC5368A42b0c2208BDCda853f6a92) | [`0xC08dfc61d702AEA45d1EF2515d8BDA36d548C75c`](https://basescan.org/address/0xC08dfc61d702AEA45d1EF2515d8BDA36d548C75c) (JevAnswerLogV2); earlier records in [`0x8e9B9cE86a2d55c10318607b0c815B7B8C66254d`](https://basescan.org/address/0x8e9B9cE86a2d55c10318607b0c815B7B8C66254d) |
+| Taifoon devnet (36927) | `0x1D622511862DD7DEffB8fEeBc225E0FAdA1e9A05` | `0xD8c1d8188Fc8EE388792f6EB3B3dbd4f341Ba8e3` |
+
+The two Taifoon mainnet logs were deployed on 2026-11-08 at their CREATE2 addresses (JevAnswerLogV2 has the same
+address on Base). Taifoon mainnet has no public explorer yet; read them from its public RPC:
+
+```sh
+curl -s https://mainnet.taifoon.dev -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"eth_getCode","params":["0xaEbF9084Bb32eB2E0F58537526A8877dd1436b23","latest"]}'
+```
+
+`record()` builds the calls for both logs on Taifoon mainnet by default (next to the devnet), and `verify --chain taifoon`
+reads them. Taifoon mainnet has no GradeStampRegistry yet, so the stamp is listed under `missing` there, said rather
+than faked. On Base, answers are written to JevAnswerLogV2 and `verify` reads it first, then the earlier JevAnswerLog,
+so a record from before V2 still verifies. Base keeps its published JevDecisionLog. Every address above is in
+`src/addresses.ts` and `src/attest.ts`.
 
 | Flag | What it does |
 |---|---|
@@ -212,6 +293,12 @@ it ships (`src/rpc-fallback.ts`, generated from the RPC registry).
 
 In code: `verify(digest, { network: 'arbitrum' })` (a name or a chain id), `{ rpc: 'https://…' }`, and `JevChainError`
 (`code`: `rpc_unavailable`, `not_deployed`, `reverted`, `bad_input`) from the lower-level calls.
+
+## Links
+
+- npm: [@taifoon/jev](https://www.npmjs.com/package/@taifoon/jev) · pricing: [@taifoon/jev-wilson](https://www.npmjs.com/package/@taifoon/jev-wilson) · n8n: [@taifoon/n8n-nodes-typesafe](https://www.npmjs.com/package/@taifoon/n8n-nodes-typesafe)
+- The coordination layer: [coord.taifoon.dev/v1](https://coord.taifoon.dev/v1) ([OpenAPI](https://coord.taifoon.dev/v1/openapi.json)) · [taifoon.io](https://www.taifoon.io)
+- Changes: [CHANGELOG.md](CHANGELOG.md) · issues: [github.com/taifoon-io/jev/issues](https://github.com/taifoon-io/jev/issues) · contact: info@taifoon.io
 
 ## Licence
 

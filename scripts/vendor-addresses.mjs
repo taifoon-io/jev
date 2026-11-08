@@ -35,17 +35,22 @@ export function render(doc) {
   // every chain the registry has a live (or devnet) JevAnswerLog AND JevDecisionLog on: verify() reads any of them
   const jev = (doc.systems.jev?.contracts ?? []).filter((c) => c.status !== 'superseded');
   const pick = (chain, base) => jev.find((c) => c.chain === chain && (c.name === base || c.name === `${base} (devnet)`));
-  const chains = [...new Set(jev.map((c) => c.chain))].sort((a, b) => a - b).filter((c) => pick(c, 'JevAnswerLog') && pick(c, 'JevDecisionLog'));
-  const logRows = chains.map((c) => { const a = pick(c, 'JevAnswerLog'); const d = pick(c, 'JevDecisionLog');
-    return `  ${c}: { answerLog: { address: '${a.address}', fromBlock: ${a.deploy.block} }, decisionLog: { address: '${d.address}', fromBlock: ${d.deploy.block} } },`; });
+  // _JEV_SEATS_v1_: where a JevAnswerLogV2 is live it is the answer log (records go there); the first JevAnswerLog is still read
+  const answerOf = (c) => pick(c, 'JevAnswerLogV2') ?? pick(c, 'JevAnswerLog');
+  const chains = [...new Set(jev.map((c) => c.chain))].sort((a, b) => a - b).filter((c) => answerOf(c) && pick(c, 'JevDecisionLog'));
+  const logRows = chains.map((c) => { const a = answerOf(c); const d = pick(c, 'JevDecisionLog');
+    const first = a.name.startsWith('JevAnswerLogV2') ? pick(c, 'JevAnswerLog') : null;
+    const earlier = first ? `, earlierAnswerLogs: [{ address: '${first.address}', fromBlock: ${first.deploy.block} }]` : '';
+    return `  ${c}: { answerLog: { address: '${a.address}', fromBlock: ${a.deploy.block} }, decisionLog: { address: '${d.address}', fromBlock: ${d.deploy.block} }${earlier} },`; });
   return `// VENDORED from an address registry (addresses.json, public subset) by scripts/vendor-addresses.mjs - do not edit here.
 // Only the contracts this SDK names; test/addresses-vendor.test.ts checks the copy against the registry.
 export const REGISTRY_ADDRESSES = {
 ${rows.join('\n')}
 } as const;
 
-/** The Jev logs on every chain the registry deploys them to (JevAnswerLog + JevDecisionLog, from their deploy block). */
-export const JEV_LOGS: Readonly<Record<number, { answerLog: { address: string; fromBlock: number }; decisionLog: { address: string; fromBlock: number } }>> = {
+/** The Jev logs on every chain the registry deploys them to (from their deploy block): the answer log records go to (JevAnswerLogV2
+ *  where it is live, else JevAnswerLog), the decision log, and the earlier answer logs still read (Base: the first JevAnswerLog). */
+export const JEV_LOGS: Readonly<Record<number, { answerLog: { address: string; fromBlock: number }; decisionLog: { address: string; fromBlock: number }; earlierAnswerLogs?: readonly { address: string; fromBlock: number }[] }>> = {
 ${logRows.join('\n')}
 };
 `;
