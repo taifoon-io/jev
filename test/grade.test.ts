@@ -74,12 +74,12 @@ describe('grade() without a key: the free grades on the layer', () => {
     ? { ok: true, judge_called: true, model: 'jev-1.13.0', receipt: { answers: Object.fromEntries(CLEAN.map((a) => [a.id, a])) }, quota: { grades: { free: 3, left } } }
     : { ok: false, code: 'payment_required', error: 'one Jev grade is 0.05 USDC with x402' }), { status })) as unknown as Mock;
 
-  it('claims a free grade: POST /v1/judge/compose with the evidence, the answers composed here, the receipt says trial and what is left', async () => {
+  it('claims a free grade: POST /v1/jev/grade (coord, 0.5.0) with the evidence, the answers composed here, the receipt says trial and what is left', async () => {
     const f = layerAnswer();
     const r = await grade({ subject: 's', evidence: 'task: reply yes. reply: yes', fetch: f as unknown as typeof fetch });
     expect(f).toHaveBeenCalledTimes(1);
     const [url, init] = f.mock.calls[0]!;
-    expect(url).toBe('https://coord.taifoon.dev/v1/judge/compose');
+    expect(url).toBe('https://coord.taifoon.dev/v1/jev/grade');
     expect(JSON.parse(String(init.body)).state).toContain('reply: yes');
     expect((init.headers as Record<string, string>)['x-taifoon-client']).toBe('@taifoon/jev');
     expect((init.headers as Record<string, string>)['x-api-key']).toBeUndefined();
@@ -101,8 +101,19 @@ describe('grade() without a key: the free grades on the layer', () => {
   it('a Taifoon key pays past the free grades (sent as x-api-key); a layer URL can be named', async () => {
     const f = layerAnswer();
     await grade({ subject: 's', evidence: 'x', layerKey: 'tfr_test', layer: 'https://layer.example', fetch: f as unknown as typeof fetch });
-    expect(f.mock.calls[0]![0]).toBe('https://layer.example/v1/judge/compose');
+    expect(f.mock.calls[0]![0]).toBe('https://layer.example/v1/jev/grade');
     expect((f.mock.calls[0]![1].headers as Record<string, string>)['x-api-key']).toBe('tfr_test');
+  });
+
+  it('a layer without /v1/jev/* (404) is asked once more on /v1/judge/compose; an overridden route is not', async () => {
+    const ok = layerAnswer();
+    const f = vi.fn(async (url: string, init: RequestInit) => (url.endsWith('/v1/jev/grade') ? new Response('{}', { status: 404 }) : (ok as unknown as typeof fetch)(url, init))) as unknown as Mock;
+    const r = await grade({ subject: 's', evidence: 'x', fetch: f as unknown as typeof fetch });
+    expect(f.mock.calls.map((c) => c[0])).toEqual(['https://coord.taifoon.dev/v1/jev/grade', 'https://coord.taifoon.dev/v1/judge/compose']);
+    expect(r.verdict).toBe('complete');
+    const g = vi.fn(async () => new Response('{}', { status: 404 })) as unknown as Mock;
+    await expect(grade({ subject: 's', evidence: 'x', routes: { grade: '/mine/grade' }, fetch: g as unknown as typeof fetch })).rejects.toMatchObject({ status: 404 });
+    expect(g.mock.calls.map((c) => c[0])).toEqual(['https://coord.taifoon.dev/mine/grade']);
   });
 
   it('with a TypeSafe key the layer is never called; with layer:false and no key there is no grade', async () => {
@@ -194,5 +205,28 @@ describe('verify()', () => {
     expect(v.onChain.answers[0]!.recorder.toLowerCase()).toBe('0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc');
     expect(v.checks.decisionOnChain).toBe(true);
     expect(v.onChain.decisions[0]).toMatchObject({ tx: '0x687ba9d73d5789a2df9d9d09e94b6ed005447d7f5ece97f9226ea0d51f514ee4', index: 0, confidenceBps: 2700 });
+  });
+});
+
+describe('through coord (0.5.0): record with a layer key, the graded jobs', () => {
+  const answers = CLEAN.map((a) => ({ ...a, value: String(a.value) }));
+  it('record({ layerKey }) also posts the answers to POST /v1/jev/record with the network word; no key, no call', async () => {
+    const r = await grade({ subject: 's', evidence: 'x', at: 1, answers, model: 'jev-1.13.0' });
+    const f = vi.fn(async () => new Response(JSON.stringify({ ok: true, digest: '0x01' }), { status: 200 })) as unknown as Mock;
+    const out = await record(r, { network: 'devnet', layerKey: 'tfr_test', fetch: f as unknown as typeof fetch });
+    expect(f.mock.calls[0]![0]).toBe('https://coord.taifoon.dev/v1/jev/record');
+    expect((f.mock.calls[0]![1].headers as Record<string, string>)['x-api-key']).toBe('tfr_test');
+    expect(JSON.parse(String(f.mock.calls[0]![1].body)).record).toBe('devnet');
+    expect(out.layer).toMatchObject({ ok: true, status: 200, path: '/v1/jev/record' });
+    const g = vi.fn() as unknown as Mock;
+    expect((await record(r, { network: 'devnet', fetch: g as unknown as typeof fetch })).layer).toBeUndefined();
+    expect(g).not.toHaveBeenCalled();
+  });
+  it('jobs() reads GET /v1/jev/jobs for a network', async () => {
+    const { jobs } = await import('../src/index.js');
+    const f = vi.fn(async () => new Response(JSON.stringify({ ok: true, network: 8453, read_at: 'x', count: 0, summary: { graded: 0, with_ending: 0, grade_gated_endings: 0 }, jobs: [] }), { status: 200 })) as unknown as Mock;
+    const j = await jobs({ network: 8453, limit: 5, fetch: f as unknown as typeof fetch });
+    expect(f.mock.calls[0]![0]).toBe('https://coord.taifoon.dev/v1/jev/jobs?network=8453&limit=5');
+    expect(j.network).toBe(8453);
   });
 });

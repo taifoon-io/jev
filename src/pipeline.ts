@@ -5,6 +5,7 @@
 // (https://coord.taifoon.dev by default) the job comes from /v1/judge/queue, the pack from /v1/judge/evidence, the
 // seller's terms from /v1/pools/quote, and — only with a relayer key — the answers are recorded on the layer through
 // /v1/judge/answers/record. Nothing here signs a transaction.
+import { layerCall } from './layer.js';
 import { premium as wilsonPremium, wilson } from './wilson.js';
 import { facts as runFacts, type FactsInput } from './facts.js';
 import { grade, type GradeInput } from './grade.js';
@@ -25,7 +26,7 @@ export const STEPS: ReadonlyArray<{ id: StepId; title: string; route: string | n
   { id: 'evidence', title: 'Read the evidence pack', route: 'GET /v1/judge/evidence/{chain}/{jobId}', required: true },
   { id: 'facts', title: 'Code establishes the facts (a failed check ends the job)', route: null, required: true },
   { id: 'grade', title: 'Jev answers RUBRIC_v1, code composes the verdict', route: null, required: true },
-  { id: 'record', title: 'Record the answers and the decision', route: 'POST /v1/judge/answers/record' },
+  { id: 'record', title: 'Record the answers and the decision', route: 'POST /v1/jev/record' },
   { id: 'evaluator', title: 'The call that ends the job on its protocol', route: null },
   { id: 'premium', title: 'Price the next premium from the seller record (Wilson)', route: 'POST /v1/pools/quote' },
   { id: 'verify', title: 'Re-derive the receipt (and find it on chain)', route: null },
@@ -141,6 +142,14 @@ export function protocolFor(jobId: string): { protocol: Protocol; id: string } |
   return null;
 }
 
+/** a Jev route of the layer (POST /v1/jev/record …), falling back once to the judge route it aliases on a 404 */
+async function layerJson<T>(f: typeof fetch, base: string, route: 'record', init: RequestInit): Promise<T> {
+  const { r, path } = await layerCall({ f, base, route, init, timeoutMs: 30_000 });
+  const j = (await r.json().catch(() => ({}))) as T & { ok?: boolean; error?: string };
+  if (!r.ok || j.ok === false) throw new Error(`${init.method ?? 'GET'} ${path}: ${r.status} ${j.error ?? ''}`.trim());
+  return j;
+}
+
 async function getJson<T>(f: typeof fetch, url: string, init?: RequestInit): Promise<T> {
   const r = await f(url, { ...init, signal: AbortSignal.timeout(30_000) });
   const j = (await r.json().catch(() => ({}))) as T & { ok?: boolean; error?: string };
@@ -217,7 +226,7 @@ export async function pipeline(o: PipelineOpts = {}): Promise<Trace> {
     if (!receipt.decision) return { skip: `nothing to record: ${receipt.reasons[0] ?? receipt.verdict} (the facts decided; Jev was not asked)` };
     t.recorded = await record(receipt, { network: o.network, networks: o.networks });
     if (layer && o.relayerKey && receipt.answersRecord)
-      t.layerRecord = await getJson<LayerRecord>(f, `${layer}/v1/judge/answers/record`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': o.relayerKey }, body: JSON.stringify({ ...receipt.answersRecord, record: o.network ?? (o.networks ? (o.networks.includes(8453) ? (o.networks.includes(36927) ? 'both' : 'base') : o.networks.includes(36927) ? 'devnet' : 'none') : 'devnet') }) });
+      t.layerRecord = await layerJson<LayerRecord>(f, layer, 'record', { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': o.relayerKey }, body: JSON.stringify({ ...receipt.answersRecord, record: o.network ?? (o.networks ? (o.networks.includes(8453) ? (o.networks.includes(36927) ? 'both' : 'base') : o.networks.includes(36927) ? 'devnet' : 'none') : 'devnet') }) });
     const rec = (t.layerRecord as { recording?: { used?: unknown; held?: { message?: string } } } | null)?.recording;
     return { status: t.recorded.status, recording: rec ? { used: rec.used ?? null, held: rec.held?.message ?? null } : null, calls: t.recorded.calls.map((c) => `${c.fn}@${c.chainId}`), missing: t.recorded.missing.map((m) => `${m.contract}@${m.chainId}`), digests: t.recorded.digests, layer: t.layerRecord ?? (layer ? 'not written: pass a relayer key to record on the layer' : 'independent mode') };
   });
