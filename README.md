@@ -195,10 +195,15 @@ no one). `TAIFOON_RELAYER_KEY` pays layer grades past the free ones from that ke
 - **Nothing is signed.** `record()` and `evaluatorCall()` return unsigned calls. Whoever holds the seat signs.
 - **Your key, or the free grades.** With your own TypeSafe key from [console.typesafe.ai](https://console.typesafe.ai),
   Jev is called directly at TypeSafe; the key is not stored and never appears in a receipt. Without one, `grade()`
-  claims one of your free grades on the coordination layer (`POST https://coord.taifoon.dev/v1/judge/compose`, 3 a day
-  per caller): the layer asks Jev the same four questions and this package composes the verdict from the answers, so the
+  claims one of your free grades on the coordination layer (`POST https://coord.taifoon.dev/v1/jev/grade`, 3 a day
+  per caller; a layer without `/v1/jev/*` is asked on `/v1/judge/compose`, the route it aliases): the layer asks Jev the same four questions and this package composes the verdict from the answers, so the
   receipt is the same shape (`via.connection: "trial"`, with the grades left). Past them the layer answers 402 with the
   price of one grade (x402), or pass `layerKey` (a Taifoon key) to pay from its balance. `layer: false` turns this off.
+- **Through coord by default (0.5.0).** Every layer call goes to coord's `/v1/jev/*`: `grade()` → `POST /v1/jev/grade`,
+  `record(receipt, { layerKey })` → also `POST /v1/jev/record` (the layer stores the answers and records them on the networks
+  named), `jobs({ network: 36927 | 8453 })` → `GET /v1/jev/jobs` (the graded jobs, decoded, with the release or refund that
+  followed). `layer` overrides the base and `routes` any path (`{ grade: '/v1/judge/compose' }`). Your own TypeSafe key still
+  goes straight to TypeSafe and is never sent to the layer.
 - **What the result is.** *Graded against a published rubric by a pinned decision model, with an appeal.* It is not
   "independently verified". An on-chain record is an attestation by whoever sent it, not a proof the answer is right.
 

@@ -3,6 +3,7 @@ import { askJev, askLayer, JevError, type Asked } from './ask.js';
 import { answersOf, buildReceipt, DEFAULT_FACTS, inputFor, packOf, rubricOf, type Connection, type Receipt } from './receipt.js';
 import type { Subject } from './records.js';
 import type { Answer, Facts, Rubric, RubricInput } from './rubric.js';
+import type { LayerRoutes } from './layer.js';
 
 export type GradeInput = {
   /** what is being graded: a job id / reference, or { chainId, at, ref } for an on-chain job */
@@ -23,11 +24,14 @@ export type GradeInput = {
   caller?: string;
   /** base URL for `key` (default https://api.typesafe.ai) */
   endpoint?: string;
-  /** with no `key` and no `answers`: the coordination layer whose free grades are claimed (default https://coord.taifoon.dev);
+  /** with no `key` and no `answers`: the coordination layer whose free grades are claimed (default https://coord.taifoon.dev,
+   *  POST /v1/jev/grade);
    *  false never calls it (then a key or answers are required) */
   layer?: string | false;
   /** a Taifoon key (tfr_…): a grade past the free ones is paid from its balance on the layer */
   layerKey?: string | null;
+  /** override a layer path (default coord's /v1/jev/grade; a 404 there falls back to /v1/judge/compose) */
+  routes?: Partial<LayerRoutes>;
   fetch?: typeof fetch;
   /** ms since epoch for the answer record; default now */
   at?: number;
@@ -47,7 +51,7 @@ export async function grade(g: GradeInput): Promise<Receipt> {
       // _FREE_GRADES_v1_: no key of your own → the caller's free grades on the coordination layer (then x402 or a Taifoon key)
       asked = g.key
         ? await askJev({ text: jevState, questions: rubric.asked, key: g.key, endpoint: g.endpoint, fetch: g.fetch })
-        : await askLayer({ text: jevState, questions: rubric.asked, layer: g.layer || undefined, apiKey: g.layerKey, fetch: g.fetch });
+        : await askLayer({ text: jevState, questions: rubric.asked, layer: g.layer || undefined, apiKey: g.layerKey, routes: g.routes, fetch: g.fetch });
       const missing = rubric.asked.filter((q) => !asked!.answers[q.id]).map((q) => q.id);
       if (missing.length) throw new JevError(`Jev returned no valid answer for: ${missing.join(', ')}`, 502);
       answers = asked.answers; model = asked.model; connection = asked.connection;

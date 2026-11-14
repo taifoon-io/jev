@@ -9,6 +9,7 @@ import { refBytes32, ZERO_ADDRESS } from './records.js';
 import type { Hex } from './hash.js';
 import type { Receipt } from './receipt.js';
 import type { Verdict } from './rubric.js';
+import { layerBase, layerCall, type LayerRoutes } from './layer.js';
 
 export type Network = 'none' | 'devnet' | 'base' | 'both';
 export type UnsignedCall = { chainId: number; to: string | null; data: Hex; value: '0'; fn: string };
@@ -24,6 +25,8 @@ export type Recorded = {
   digests: { answers: Hex; decision: Hex; input: Hex; subject: Hex; receipt: Hex; stampSubject: Hex };
   notes: string[];
   sent?: string[];
+  /** with `layerKey`: what the layer answered for POST /v1/jev/record (it stores the answers and records them on the networks named) */
+  layer?: { ok: boolean; status: number; path: string; body: unknown };
 };
 
 export const ANSWER_LOG_RECORD = 'record(bytes32,bytes32,bytes32,bytes32,bytes32,string,string)';
@@ -33,7 +36,10 @@ export const DECISION_LOG_RECORD = 'record(bytes32,bytes32,bytes32,uint16,string
 export const STAMP_VERDICT_OF: Record<Verdict, StampVerdict> = { complete: 1, reject: 2, needs_review: 4 };
 const NETWORKS: Record<Exclude<Network, 'none'>, number[]> = { devnet: [36927], base: [8453], both: [36927, 8453] };
 
-export async function record(r: Receipt, opts: { network?: Network; networks?: readonly number[]; profile?: AttestProfile; uri?: string; stamp?: boolean; send?: (call: UnsignedCall) => Promise<string> } = {}): Promise<Recorded> {
+export async function record(r: Receipt, opts: { network?: Network; networks?: readonly number[]; profile?: AttestProfile; uri?: string; stamp?: boolean; send?: (call: UnsignedCall) => Promise<string>;
+  /** _JEV_THROUGH_COORD_v1_: a Taifoon key (tfr_…): the answers are also recorded through the layer (POST /v1/jev/record), which
+   *  stores them, digests them and records them on the same networks with its own recorder key. Your key goes only to the layer. */
+  layerKey?: string | null; layer?: string; routes?: Partial<LayerRoutes>; fetch?: typeof fetch } = {}): Promise<Recorded> {
   if (!r.decision || !r.answersRecord || !r.answersDigest) throw new Error(`nothing to record: Jev was not asked (${r.reasons[0] ?? r.verdict}) — a hard fail is decided by the facts alone`);
   const network: Recorded['network'] = opts.network ?? (opts.networks ? 'chains' : 'default');
   const chains = opts.network === 'none' ? 'none' as const : opts.network ? NETWORKS[opts.network] : opts.networks ?? ATTEST_PROFILES[opts.profile ?? 'taifoon'];
@@ -57,5 +63,19 @@ export async function record(r: Receipt, opts: { network?: Network; networks?: r
     ],
   };
   if (opts.send) { out.sent = []; for (const c of out.calls) out.sent.push(await opts.send(c)); if (out.sent.length) out.status = 'sent'; }
+  if (opts.layerKey) out.layer = await recordThroughLayer(r, out.networks, opts);
   return out;
+}
+
+/** the network word the layer's record takes, from the chains a record aims at. Pure. */
+export function layerNetworkOf(chains: readonly number[]): Network {
+  const dev = chains.includes(36927); const base = chains.includes(8453);
+  return dev && base ? 'both' : base ? 'base' : dev ? 'devnet' : 'none';
+}
+
+async function recordThroughLayer(r: Receipt, chains: readonly number[], o: { layerKey?: string | null; layer?: string; routes?: Partial<LayerRoutes>; fetch?: typeof fetch }): Promise<NonNullable<Recorded['layer']>> {
+  const { r: res, path } = await layerCall({ f: o.fetch ?? fetch, base: layerBase(o.layer), route: 'record', routes: o.routes, timeoutMs: 30_000,
+    init: { method: 'POST', headers: { 'content-type': 'application/json', 'x-taifoon-client': '@taifoon/jev', 'x-api-key': String(o.layerKey) }, body: JSON.stringify({ ...r.answersRecord, record: layerNetworkOf(chains) }) } });
+  const body = await res.json().catch(() => null) as { ok?: boolean } | null;
+  return { ok: res.ok && body?.ok !== false, status: res.status, path, body };
 }

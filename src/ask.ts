@@ -1,8 +1,10 @@
 // Asking Jev, two ways. With the caller's own TypeSafe key: https://api.typesafe.ai/v1/systemone (console.typesafe.ai).
-// Without one: the caller's free grades on the Taifoon coordination layer (POST /v1/judge/compose), which asks Jev the same
+// Without one: the caller's free grades on the Taifoon coordination layer (POST /v1/jev/grade, 0.5.0; the alias of
+// /v1/judge/compose, which a layer without the alias still answers), which asks Jev the same
 // four questions and returns the answers whole; past the free grades it answers 402 with how to pay one grade. This
 // package holds no key of its own. The answer comes back whole: value, confidence and every option's probability.
 import type { Answer, Question } from './rubric.js';
+import { LAYER_URL, layerBase, layerCall, type LayerRoutes } from './layer.js';
 
 export const TYPESAFE_URL = 'https://api.typesafe.ai';
 /** The model every key-path call asks for. Pinned, not `jev-latest`: a record says which model answered, and an alias can move. */
@@ -11,7 +13,7 @@ export const JEV_MODEL = 'jev-1.13.0';
 export type Asked = { answers: Record<string, Answer>; model: string | null; latency_ms: number | null; connection: 'key' | 'trial'; trial: { calls: number; left: number } | null };
 
 /** the coordination layer, where a caller without a TypeSafe key claims its free grades */
-export const LAYER_URL = 'https://coord.taifoon.dev';
+export { LAYER_URL };
 /** the questions the layer's free grade answers (RUBRIC_v1 asks exactly these); another rubric needs the caller's own key */
 export const LAYER_QUESTIONS = Object.freeze(['spec_met', 'unsupported_claim', 'ending', 'cheat_shaped']);
 export class JevError extends Error {
@@ -37,16 +39,15 @@ export async function askJev(a: { text: string; questions: readonly Question[]; 
 
 /** A free grade on the coordination layer (or one paid from a Taifoon key's balance, with `apiKey`): the layer asks Jev the
  *  four RUBRIC questions on `text` and returns the answers; this package composes the verdict from them as with a key. */
-export async function askLayer(a: { text: string; questions: readonly Question[]; layer?: string; apiKey?: string | null; fetch?: typeof fetch }): Promise<Asked> {
+export async function askLayer(a: { text: string; questions: readonly Question[]; layer?: string; apiKey?: string | null; routes?: Partial<LayerRoutes>; fetch?: typeof fetch }): Promise<Asked> {
   const f = a.fetch ?? fetch;
   const started = Date.now();
   const other = a.questions.map((q) => q.id).filter((id) => !LAYER_QUESTIONS.includes(id));
   if (other.length) throw new JevError(`the layer's free grade answers ${LAYER_QUESTIONS.join(', ')}; this rubric also asks ${other.join(', ')}: pass { key } (your TypeSafe key)`, 400, 'grade({ key: process.env.TYPESAFE_KEY })');
-  const base = (a.layer ?? LAYER_URL).replace(/\/$/, '');
-  if (!/^https:\/\//.test(base) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(base)) throw new JevError('the layer is only called over https', 400);
-  const r = await f(`${base}/v1/judge/compose`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-taifoon-client': '@taifoon/jev', ...(a.apiKey ? { 'x-api-key': a.apiKey } : {}) }, body: JSON.stringify({ state: a.text }), signal: AbortSignal.timeout(65_000) });
+  let base: string; try { base = layerBase(a.layer); } catch (e) { throw new JevError((e as Error).message, 400); }
+  const { r, path } = await layerCall({ f, base, route: 'grade', routes: a.routes, init: { method: 'POST', headers: { 'content-type': 'application/json', 'x-taifoon-client': '@taifoon/jev', ...(a.apiKey ? { 'x-api-key': a.apiKey } : {}) }, body: JSON.stringify({ state: a.text }) } });
   const j = (await r.json().catch(() => ({}))) as { model?: string; receipt?: { answers?: Record<string, Record<string, unknown>> }; quota?: { grades?: { free?: number; left?: number } }; error?: string; next_step?: unknown };
-  if (r.status === 402) throw new JevError('no free grade left for this caller today: pass { key } (your TypeSafe key), a Taifoon key (layerKey), or pay one grade with x402 at POST ' + `${base}/v1/judge/compose`, 402, `${base}/v1/judge/compose`);
+  if (r.status === 402) throw new JevError('no free grade left for this caller today: pass { key } (your TypeSafe key), a Taifoon key (layerKey), or pay one grade with x402 at POST ' + `${base}${path}`, 402, `${base}${path}`);
   if (!r.ok) throw new JevError(`the layer answered ${r.status}${j.error ? `: ${String(j.error).slice(0, 200)}` : ''}`, r.status);
   const answers: Record<string, Answer> = {};
   for (const q of a.questions) { const x = j.receipt?.answers?.[q.id]; if (x) answers[q.id] = norm(q.id, x); }

@@ -3,6 +3,19 @@
 All notable changes to `@taifoon/jev`. Versions follow the GitHub releases of this repository; each is published to npm
 with provenance by `.github/workflows/publish.yml`.
 
+## 0.5.0
+
+- Through coord by default (`_JEV_THROUGH_COORD_v1_`): a grade without your own key is `POST /v1/jev/grade` on the
+  coordination layer (was `/v1/judge/compose`, which it aliases), and `pipeline()` records with `POST /v1/jev/record`. A
+  layer that answers 404 on a `/v1/jev/*` route is asked once more on the judge route it aliases, so 0.5.0 works against a
+  layer that has not deployed the aliases yet. `routes` overrides any path; `layer` the base, as before.
+- `record(receipt, { layerKey })`: with a Taifoon key the answers are also recorded through the layer
+  (`POST /v1/jev/record`, the network word derived from the chains the record aims at); its answer is `recorded.layer`.
+  Without a key nothing is sent, as before.
+- `jobs({ network, limit })`: `GET /v1/jev/jobs`, the graded jobs on the devnet 36927 or Base 8453, each with its rubric,
+  verdict, checks, answers digest, on-chain record and the release or refund that followed. Types `JevJob`, `JevJobs`.
+- Your own TypeSafe key (`key`) still goes straight to TypeSafe; it is never sent to the layer.
+
 ## 0.4.0
 
 - `verify` reads a trusted record past an endpoint that serves only recent logs. `JevAnswerLog.recordedAt` names the block
